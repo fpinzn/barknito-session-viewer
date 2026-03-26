@@ -1,0 +1,21 @@
+{
+  "planes": [
+    {
+      "timestampMs": 200,
+      "planeId": "plane-001",
+      "alignment": "horizontal",
+      "classification": "floor",
+      "center": { "x": 0.0, "y": -0.5, "z": 1.0 },
+      "extent": { "x": 2.0, "z": 3.0 },
+      "boundary": [0.5, 0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5]
+    },
+    {
+      "timestampMs": 500,
+      "planeId": "plane-002",
+      "alignment": "vertical",
+      "classification": "wall",
+      "center": { "x": 1.0, "y": 0.0, "z": 0.0 },
+      "extent": { "x": 1.0, "z": 2.0 }
+    }
+  ]
+}

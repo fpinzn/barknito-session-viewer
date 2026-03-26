@@ -1,0 +1,11 @@
+{
+  "sceneId": "03_TargetSpawningObjects",
+  "deviceId": "device-abc-123",
+  "sessionId": "session-xyz-789",
+  "focalLengthX": 1428.57,
+  "focalLengthY": 1428.57,
+  "principalPointX": 360.0,
+  "principalPointY": 480.0,
+  "cameraResW": 720,
+  "cameraResH": 960
+}

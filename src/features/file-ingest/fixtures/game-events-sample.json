@@ -1,0 +1,7 @@
+{
+  "events": [
+    { "type": "SpawningObjectsBeamScored", "timestampMs": 5000, "beamNumber": 1, "totalBeams": 5 },
+    { "type": "GameStarted", "timestampMs": 1000 },
+    { "type": "SpawningObjectsBeamScored", "timestampMs": 8000, "beamNumber": 2, "totalBeams": 5 }
+  ]
+}

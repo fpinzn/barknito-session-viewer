@@ -1,0 +1,4 @@
+frame_id,timestamp_ms,cam_pos_x,cam_pos_y,cam_pos_z,cam_rot_x,cam_rot_y,cam_rot_z,cam_rot_w
+1,100,0.1,0.2,0.3,0.0,0.0,0.0,1.0
+2,133,0.11,0.21,0.31,0.01,0.0,0.0,0.9999
+3,166,0.12,0.22,0.32,0.02,0.0,0.0,0.9998
