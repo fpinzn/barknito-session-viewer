@@ -13,6 +13,7 @@ interface UIState {
   skelMsOffset: number
   followCam: boolean
   activePanel: 'none' | 'gcs' | 'export' | 'events' | 'files'
+  browserViewMode: 'device' | 'date'
 
   setShow3DSkeleton: (v: boolean) => void
   setShow2DSkeleton: (v: boolean) => void
@@ -26,6 +27,7 @@ interface UIState {
   setSkelMsOffset: (v: number) => void
   setFollowCam: (v: boolean) => void
   setActivePanel: (v: 'none' | 'gcs' | 'export' | 'events' | 'files') => void
+  setBrowserViewMode: (v: 'device' | 'date') => void
   reset: () => void
 }
 
@@ -42,6 +44,7 @@ const initialState = {
   skelMsOffset: 0,
   followCam: true,
   activePanel: 'gcs' as const,
+  browserViewMode: 'device' as const,
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -59,5 +62,6 @@ export const useUIStore = create<UIState>((set) => ({
   setSkelMsOffset: (v) => set({ skelMsOffset: v }),
   setFollowCam: (v) => set({ followCam: v }),
   setActivePanel: (v) => set({ activePanel: v }),
+  setBrowserViewMode: (v) => set({ browserViewMode: v }),
   reset: () => set(initialState),
 }))

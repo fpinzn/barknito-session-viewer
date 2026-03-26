@@ -62,6 +62,33 @@ export function FileInspector() {
     return () => { cancelled = true }
   }, [bucket, folder])
 
+  const handleDownloadAll = useCallback(async () => {
+    if (files.length === 0) return
+    const { default: JSZip } = await import('jszip')
+    const zip = new JSZip()
+    const folderName = folder.split('/').pop() || folder
+    await Promise.all(files.map(async (f) => {
+      try {
+        const url = `https://storage.googleapis.com/download/storage/v1/b/${bucket}/o/${encodeURIComponent(f.name)}?alt=media`
+        const resp = await gcsGet(url)
+        const blob = await resp.blob()
+        const fname = f.name.split('/').pop() || f.name
+        zip.file(fname, blob)
+      } catch (err) {
+        console.error(`Failed to fetch ${f.name}:`, err)
+      }
+    }))
+    const content = await zip.generateAsync({ type: 'blob' })
+    const blobUrl = URL.createObjectURL(content)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = `${folderName}.zip`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(blobUrl)
+  }, [bucket, folder, files])
+
   const handleDownload = useCallback(async (objectName: string) => {
     try {
       const url = `https://storage.googleapis.com/download/storage/v1/b/${bucket}/o/${encodeURIComponent(objectName)}?alt=media`
@@ -114,6 +141,9 @@ export function FileInspector() {
       <div className="file-inspector-header">
         <h3>Files</h3>
         <span className="file-inspector-count">{files.length} files</span>
+        <button className="btn-download-all" onClick={handleDownloadAll} title="Download all as ZIP">
+          {'\u2B07'} All
+        </button>
       </div>
       <div className="file-inspector-list">
         {files.map(f => {

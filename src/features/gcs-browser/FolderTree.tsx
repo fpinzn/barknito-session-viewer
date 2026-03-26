@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { gcsList, BUCKETS } from './gcsApi'
+import { useUIStore } from '../../stores/uiStore'
 
 interface FolderTreeProps {
   env: string
@@ -14,11 +15,29 @@ interface DeviceNode {
   open: boolean
 }
 
+function parseSessionTimestamp(sessionPath: string): number {
+  const name = sessionPath.split('/').pop() || ''
+  const m = name.match(/(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})/)
+  if (!m) return 0
+  return new Date(`${m[1]}T${m[2]}:${m[3]}:00`).getTime()
+}
+
+function formatSessionTimestamp(sessionPath: string): string {
+  const name = sessionPath.split('/').pop() || ''
+  const m = name.match(/(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})/)
+  if (!m) return name
+  return `${m[1]} ${m[2]}:${m[3]}`
+}
+
 export function FolderTree({ env, onSelectFolder }: FolderTreeProps) {
   const [devices, setDevices] = useState<DeviceNode[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
+  const [dateLoading, setDateLoading] = useState(false)
+
+  const viewMode = useUIStore(s => s.browserViewMode)
+  const setViewMode = useUIStore(s => s.setBrowserViewMode)
 
   const loadDevices = useCallback(async () => {
     setLoading(true)
@@ -46,6 +65,39 @@ export function FolderTree({ env, onSelectFolder }: FolderTreeProps) {
   if (!loaded && !loading && !error) {
     loadDevices()
   }
+
+  const loadAllSessions = useCallback(async () => {
+    const unloaded = devices.filter(d => d.sessions === null)
+    if (unloaded.length === 0) return
+    setDateLoading(true)
+    try {
+      const bucket = BUCKETS[env]
+      const results = await Promise.all(
+        unloaded.map(async (d) => {
+          const result = await gcsList(bucket, d.name + '/', '/')
+          return {
+            name: d.name,
+            sessions: (result.prefixes || [])
+              .map((p: string) => p.replace(/\/$/, ''))
+              .sort()
+              .reverse(),
+          }
+        })
+      )
+      setDevices(prev => {
+        const next = [...prev]
+        for (const r of results) {
+          const idx = next.findIndex(d => d.name === r.name)
+          if (idx >= 0) {
+            next[idx] = { ...next[idx], sessions: r.sessions, loading: false }
+          }
+        }
+        return next
+      })
+    } finally {
+      setDateLoading(false)
+    }
+  }, [devices, env])
 
   const toggleDevice = useCallback(async (deviceIdx: number) => {
     setDevices(prev => {
@@ -91,6 +143,24 @@ export function FolderTree({ env, onSelectFolder }: FolderTreeProps) {
     }
   }, [devices, env])
 
+  const allSessions = useMemo(() => {
+    if (viewMode !== 'date') return []
+    const entries: { path: string; device: string; ts: number }[] = []
+    for (const d of devices) {
+      if (!d.sessions) continue
+      for (const s of d.sessions) {
+        entries.push({ path: s, device: d.name, ts: parseSessionTimestamp(s) })
+      }
+    }
+    entries.sort((a, b) => b.ts - a.ts)
+    return entries
+  }, [devices, viewMode])
+
+  // Trigger fetch when switching to date view
+  if (viewMode === 'date' && loaded && !dateLoading && devices.some(d => d.sessions === null)) {
+    loadAllSessions()
+  }
+
   if (loading) {
     return <div className="folder-tree-status">Loading...</div>
   }
@@ -105,7 +175,22 @@ export function FolderTree({ env, onSelectFolder }: FolderTreeProps) {
 
   return (
     <div className="folder-tree">
-      {devices.map((device, idx) => (
+      <div className="view-mode-toggle">
+        <button
+          className={viewMode === 'device' ? 'active' : ''}
+          onClick={() => setViewMode('device')}
+        >
+          By Device
+        </button>
+        <button
+          className={viewMode === 'date' ? 'active' : ''}
+          onClick={() => setViewMode('date')}
+        >
+          By Date
+        </button>
+      </div>
+
+      {viewMode === 'device' && devices.map((device, idx) => (
         <div key={device.name}>
           <div
             className={`device-row${device.open ? ' open' : ''}`}
@@ -134,7 +219,6 @@ export function FolderTree({ env, onSelectFolder }: FolderTreeProps) {
                     className="session-row"
                     href={href}
                     onClick={(e) => {
-                      // Let middle-click / ctrl-click / cmd-click open in new tab natively
                       if (e.button !== 0 || e.metaKey || e.ctrlKey) return
                       e.preventDefault()
                       e.stopPropagation()
@@ -149,6 +233,34 @@ export function FolderTree({ env, onSelectFolder }: FolderTreeProps) {
           )}
         </div>
       ))}
+
+      {viewMode === 'date' && dateLoading && (
+        <div className="folder-tree-status">Loading all sessions...</div>
+      )}
+
+      {viewMode === 'date' && !dateLoading && allSessions.length === 0 && (
+        <div className="folder-tree-status">No sessions found.</div>
+      )}
+
+      {viewMode === 'date' && allSessions.map(entry => {
+        const href = `?env=${encodeURIComponent(env)}&folder=${encodeURIComponent(entry.path)}`
+        return (
+          <a
+            key={entry.path}
+            className="session-row date-view"
+            href={href}
+            onClick={(e) => {
+              if (e.button !== 0 || e.metaKey || e.ctrlKey) return
+              e.preventDefault()
+              e.stopPropagation()
+              onSelectFolder(entry.path)
+            }}
+          >
+            <span className="session-date">{formatSessionTimestamp(entry.path)}</span>
+            <span className="session-device">{entry.device}</span>
+          </a>
+        )
+      })}
     </div>
   )
 }
