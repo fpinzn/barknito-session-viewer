@@ -22,6 +22,13 @@ function videoTimeForFrame(frames: Array<{ ts: number }>, frameIdx: number, vide
   return Math.max(0, (frames[frameIdx].ts - videoT0Ref.current) / 1000)
 }
 
+function destroyMediaElement(el: HTMLMediaElement) {
+  el.pause()
+  el.removeAttribute('src')
+  el.load()
+  el.remove()
+}
+
 export function useVideoSync() {
   const rgbVideoRef = useRef<HTMLVideoElement | null>(null)
   const depthVideoRef = useRef<HTMLVideoElement | null>(null)
@@ -60,34 +67,32 @@ export function useVideoSync() {
     depthFrameRef.height = canvas.height
   }
 
-  // Create/update video elements — clean up when URL becomes null
+  // RGB video
   useEffect(() => {
-    if (videoUrl) {
-      if (!rgbVideoRef.current) {
-        const el = document.createElement('video')
-        el.muted = true
-        el.playsInline = true
-        el.style.display = 'none'
-        document.body.appendChild(el)
-        rgbVideoRef.current = el
+    if (!videoUrl) return
 
-        const canvas = document.createElement('canvas')
-        rgbCanvasRef.current = canvas
-        rgbFrameRef.canvas = canvas
+    const el = document.createElement('video')
+    el.muted = true
+    el.playsInline = true
+    el.style.display = 'none'
+    document.body.appendChild(el)
+    rgbVideoRef.current = el
 
-        el.addEventListener('loadedmetadata', () => {
-          canvas.width = el.videoWidth
-          canvas.height = el.videoHeight
-        })
+    const canvas = document.createElement('canvas')
+    rgbCanvasRef.current = canvas
+    rgbFrameRef.canvas = canvas
 
-        el.addEventListener('seeked', drawRgbFrame)
-      }
-      rgbVideoRef.current.src = videoUrl
-      videoT0Ref.current = null
-    } else if (rgbVideoRef.current) {
-      rgbVideoRef.current.pause()
-      rgbVideoRef.current.removeAttribute('src')
-      rgbVideoRef.current.remove()
+    el.addEventListener('loadedmetadata', () => {
+      canvas.width = el.videoWidth
+      canvas.height = el.videoHeight
+    })
+    el.addEventListener('seeked', drawRgbFrame)
+
+    el.src = videoUrl
+    videoT0Ref.current = null
+
+    return () => {
+      destroyMediaElement(el)
       rgbVideoRef.current = null
       rgbCanvasRef.current = null
       rgbFrameRef.current = null
@@ -96,50 +101,48 @@ export function useVideoSync() {
     }
   }, [videoUrl])
 
+  // Depth video
   useEffect(() => {
-    if (depthVideoUrl) {
-      if (!depthVideoRef.current) {
-        const el = document.createElement('video')
-        el.muted = true
-        el.playsInline = true
-        el.style.display = 'none'
-        document.body.appendChild(el)
-        depthVideoRef.current = el
+    if (!depthVideoUrl) return
 
-        const canvas = document.createElement('canvas')
-        depthCanvasRef.current = canvas
+    const el = document.createElement('video')
+    el.muted = true
+    el.playsInline = true
+    el.style.display = 'none'
+    document.body.appendChild(el)
+    depthVideoRef.current = el
 
-        el.addEventListener('loadedmetadata', () => {
-          canvas.width = el.videoWidth
-          canvas.height = el.videoHeight
-        })
+    const canvas = document.createElement('canvas')
+    depthCanvasRef.current = canvas
 
-        el.addEventListener('seeked', drawDepthFrame)
-      }
-      depthVideoRef.current.src = depthVideoUrl
-    } else if (depthVideoRef.current) {
-      depthVideoRef.current.pause()
-      depthVideoRef.current.removeAttribute('src')
-      depthVideoRef.current.remove()
+    el.addEventListener('loadedmetadata', () => {
+      canvas.width = el.videoWidth
+      canvas.height = el.videoHeight
+    })
+    el.addEventListener('seeked', drawDepthFrame)
+
+    el.src = depthVideoUrl
+
+    return () => {
+      destroyMediaElement(el)
       depthVideoRef.current = null
       depthCanvasRef.current = null
       depthFrameRef.current = null
     }
   }, [depthVideoUrl])
 
+  // Audio
   useEffect(() => {
-    if (audioUrl) {
-      if (!audioRef.current) {
-        const el = document.createElement('audio')
-        el.style.display = 'none'
-        document.body.appendChild(el)
-        audioRef.current = el
-      }
-      audioRef.current.src = audioUrl
-    } else if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.removeAttribute('src')
-      audioRef.current.remove()
+    if (!audioUrl) return
+
+    const el = document.createElement('audio')
+    el.style.display = 'none'
+    document.body.appendChild(el)
+    audioRef.current = el
+    el.src = audioUrl
+
+    return () => {
+      destroyMediaElement(el)
       audioRef.current = null
     }
   }, [audioUrl])
