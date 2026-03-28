@@ -93,9 +93,10 @@ export function GCSBrowser() {
     setError(null)
     setProgress(null)
 
-    // Reset previous session data before loading new one
+    // Reset all session state before loading new one
     useSessionStore.getState().reset()
     usePlaybackStore.getState().reset()
+    useUIStore.getState().reset()
 
     // Update URL
     const newUrl = new URL(window.location.href)

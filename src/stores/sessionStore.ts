@@ -94,5 +94,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setVideoUrl: (url) => set({ videoUrl: url }),
   setDepthVideoUrl: (url) => set({ depthVideoUrl: url }),
   setAudioUrl: (url) => set({ audioUrl: url }),
-  reset: () => set(initialState),
+  reset: () => {
+    const { videoUrl, depthVideoUrl, audioUrl } = get()
+    if (videoUrl) URL.revokeObjectURL(videoUrl)
+    if (depthVideoUrl) URL.revokeObjectURL(depthVideoUrl)
+    if (audioUrl) URL.revokeObjectURL(audioUrl)
+    set(initialState)
+  },
 }))
