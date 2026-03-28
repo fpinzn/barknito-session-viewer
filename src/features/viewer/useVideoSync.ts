@@ -60,7 +60,7 @@ export function useVideoSync() {
     depthFrameRef.height = canvas.height
   }
 
-  // Create/update video elements
+  // Create/update video elements — clean up when URL becomes null
   useEffect(() => {
     if (videoUrl) {
       if (!rgbVideoRef.current) {
@@ -83,6 +83,16 @@ export function useVideoSync() {
         el.addEventListener('seeked', drawRgbFrame)
       }
       rgbVideoRef.current.src = videoUrl
+      videoT0Ref.current = null
+    } else if (rgbVideoRef.current) {
+      rgbVideoRef.current.pause()
+      rgbVideoRef.current.removeAttribute('src')
+      rgbVideoRef.current.remove()
+      rgbVideoRef.current = null
+      rgbCanvasRef.current = null
+      rgbFrameRef.current = null
+      rgbFrameRef.canvas = null
+      videoT0Ref.current = null
     }
   }, [videoUrl])
 
@@ -107,6 +117,13 @@ export function useVideoSync() {
         el.addEventListener('seeked', drawDepthFrame)
       }
       depthVideoRef.current.src = depthVideoUrl
+    } else if (depthVideoRef.current) {
+      depthVideoRef.current.pause()
+      depthVideoRef.current.removeAttribute('src')
+      depthVideoRef.current.remove()
+      depthVideoRef.current = null
+      depthCanvasRef.current = null
+      depthFrameRef.current = null
     }
   }, [depthVideoUrl])
 
@@ -119,6 +136,11 @@ export function useVideoSync() {
         audioRef.current = el
       }
       audioRef.current.src = audioUrl
+    } else if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.removeAttribute('src')
+      audioRef.current.remove()
+      audioRef.current = null
     }
   }, [audioUrl])
 
