@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { gcsList, BUCKETS } from './gcsApi'
+import { SessionThumbnail } from './SessionThumbnail'
 import { useUIStore } from '../../stores/uiStore'
 
 interface FolderTreeProps {
@@ -15,18 +16,39 @@ interface DeviceNode {
   open: boolean
 }
 
+const SESSION_RE = /^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/
+
 function parseSessionTimestamp(sessionPath: string): number {
   const name = sessionPath.split('/').pop() || ''
-  const m = name.match(/(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})/)
+  const m = name.match(SESSION_RE)
   if (!m) return 0
-  return new Date(`${m[1]}T${m[2]}:${m[3]}:00`).getTime()
+  return new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}`).getTime()
 }
 
 function formatSessionTimestamp(sessionPath: string): string {
   const name = sessionPath.split('/').pop() || ''
-  const m = name.match(/(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})/)
+  const m = name.match(SESSION_RE)
   if (!m) return name
-  return `${m[1]} ${m[2]}:${m[3]}`
+  return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}`
+}
+
+function sessionDatePart(sessionPath: string): string {
+  const name = sessionPath.split('/').pop() || ''
+  const m = name.match(SESSION_RE)
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : ''
+}
+
+function sessionTimePart(sessionPath: string): string {
+  const name = sessionPath.split('/').pop() || ''
+  const m = name.match(SESSION_RE)
+  return m ? `${m[4]}:${m[5]}` : name
+}
+
+function formatDateHeader(dateStr: string): string {
+  if (!dateStr) return 'Unknown date'
+  const d = new Date(`${dateStr}T00:00:00`)
+  if (isNaN(d.getTime())) return dateStr
+  return d.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 export function FolderTree({ env, onSelectFolder }: FolderTreeProps) {
@@ -156,6 +178,17 @@ export function FolderTree({ env, onSelectFolder }: FolderTreeProps) {
     return entries
   }, [devices, viewMode])
 
+  const sessionsByDate = useMemo(() => {
+    const groups = new Map<string, typeof allSessions>()
+    for (const entry of allSessions) {
+      const date = sessionDatePart(entry.path)
+      const arr = groups.get(date) || []
+      arr.push(entry)
+      groups.set(date, arr)
+    }
+    return Array.from(groups.entries())
+  }, [allSessions])
+
   // Trigger fetch when switching to date view
   if (viewMode === 'date' && loaded && !dateLoading && devices.some(d => d.sessions === null)) {
     loadAllSessions()
@@ -210,25 +243,31 @@ export function FolderTree({ env, onSelectFolder }: FolderTreeProps) {
               {device.sessions && device.sessions.length === 0 && (
                 <div className="session-row empty">No sessions</div>
               )}
-              {device.sessions?.map(sessionPath => {
-                const sessionName = sessionPath.split('/').pop()
-                const href = `?env=${encodeURIComponent(env)}&folder=${encodeURIComponent(sessionPath)}`
-                return (
-                  <a
-                    key={sessionPath}
-                    className="session-row"
-                    href={href}
-                    onClick={(e) => {
-                      if (e.button !== 0 || e.metaKey || e.ctrlKey) return
-                      e.preventDefault()
-                      e.stopPropagation()
-                      onSelectFolder(sessionPath)
-                    }}
-                  >
-                    {sessionName}
-                  </a>
-                )
-              })}
+              {device.sessions && device.sessions.length > 0 && (
+                <div className="session-grid">
+                  {device.sessions.map(sessionPath => {
+                    const href = `?env=${encodeURIComponent(env)}&folder=${encodeURIComponent(sessionPath)}`
+                    return (
+                      <a
+                        key={sessionPath}
+                        className="session-card"
+                        href={href}
+                        onClick={(e) => {
+                          if (e.button !== 0 || e.metaKey || e.ctrlKey) return
+                          e.preventDefault()
+                          e.stopPropagation()
+                          onSelectFolder(sessionPath)
+                        }}
+                      >
+                        <SessionThumbnail env={env} sessionPath={sessionPath} />
+                        <div className="session-card-label">
+                          {formatSessionTimestamp(sessionPath)}
+                        </div>
+                      </a>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -242,25 +281,35 @@ export function FolderTree({ env, onSelectFolder }: FolderTreeProps) {
         <div className="folder-tree-status">No sessions found.</div>
       )}
 
-      {viewMode === 'date' && allSessions.map(entry => {
-        const href = `?env=${encodeURIComponent(env)}&folder=${encodeURIComponent(entry.path)}`
-        return (
-          <a
-            key={entry.path}
-            className="session-row date-view"
-            href={href}
-            onClick={(e) => {
-              if (e.button !== 0 || e.metaKey || e.ctrlKey) return
-              e.preventDefault()
-              e.stopPropagation()
-              onSelectFolder(entry.path)
-            }}
-          >
-            <span className="session-date">{formatSessionTimestamp(entry.path)}</span>
-            <span className="session-device">{entry.device}</span>
-          </a>
-        )
-      })}
+      {viewMode === 'date' && !dateLoading && sessionsByDate.map(([date, entries]) => (
+        <div key={date} className="date-group">
+          <div className="date-header">{formatDateHeader(date)}</div>
+          <div className="session-grid">
+            {entries.map(entry => {
+              const href = `?env=${encodeURIComponent(env)}&folder=${encodeURIComponent(entry.path)}`
+              return (
+                <a
+                  key={entry.path}
+                  className="session-card"
+                  href={href}
+                  onClick={(e) => {
+                    if (e.button !== 0 || e.metaKey || e.ctrlKey) return
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onSelectFolder(entry.path)
+                  }}
+                >
+                  <SessionThumbnail env={env} sessionPath={entry.path} />
+                  <div className="session-card-label">
+                    <span className="session-card-time">{sessionTimePart(entry.path)}</span>
+                    <span className="session-card-device">{entry.device}</span>
+                  </div>
+                </a>
+              )
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
