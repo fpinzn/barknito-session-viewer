@@ -224,6 +224,16 @@ For `By Date`:
 
 The ignored sections should use the same card component and open-session behavior as the main sections to avoid duplicated UI logic.
 
+### Default Browsing Mode
+
+The browser should default to `By Date` when the session browser loads.
+
+Reasoning:
+
+- the ignore workflow is primarily about sorting through many recent sessions
+- date-first browsing is the more useful default for reviewing and triaging sessions across devices
+- device-first browsing remains available as an explicit switch, but it should not be the initial mode
+
 ## Server Responsibilities
 
 The Node service is responsible for:
