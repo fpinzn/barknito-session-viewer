@@ -32,6 +32,8 @@ interface SessionState {
   videoUrl: string | null
   depthVideoUrl: string | null
   audioUrl: string | null
+  videoStartOffsetMs: number
+  videoDurationMs: number
 
   // Actions
   loadPoseData: (frameMap: Map<number, PoseFrameEntry>, models: string[]) => void
@@ -44,6 +46,8 @@ interface SessionState {
   setVideoUrl: (url: string) => void
   setDepthVideoUrl: (url: string) => void
   setAudioUrl: (url: string) => void
+  setVideoStartOffsetMs: (offsetMs: number) => void
+  setVideoDurationMs: (durationMs: number) => void
   reset: () => void
 }
 
@@ -61,6 +65,8 @@ const initialState = {
   videoUrl: null as string | null,
   depthVideoUrl: null as string | null,
   audioUrl: null as string | null,
+  videoStartOffsetMs: 0,
+  videoDurationMs: 0,
 }
 
 function rebuild(state: Pick<SessionState, 'poseFrameMap' | 'sensorFrameMap' | 'models'>) {
@@ -94,6 +100,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setVideoUrl: (url) => set({ videoUrl: url }),
   setDepthVideoUrl: (url) => set({ depthVideoUrl: url }),
   setAudioUrl: (url) => set({ audioUrl: url }),
+  setVideoStartOffsetMs: (offsetMs) => set({ videoStartOffsetMs: offsetMs }),
+  setVideoDurationMs: (durationMs) => set({ videoDurationMs: durationMs }),
   reset: () => {
     const { videoUrl, depthVideoUrl, audioUrl } = get()
     if (videoUrl) URL.revokeObjectURL(videoUrl)

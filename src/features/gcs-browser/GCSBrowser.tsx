@@ -93,10 +93,13 @@ export function GCSBrowser() {
     setError(null)
     setProgress(null)
 
-    // Reset all session state before loading new one
+    // Reset all session state before loading new one.
+    // Await a microtask after reset so React flushes the cleanup effects
+    // (useVideoSync tears down DOM elements on null URLs) before new data loads.
     useSessionStore.getState().reset()
     usePlaybackStore.getState().reset()
     useUIStore.getState().reset()
+    await new Promise(r => setTimeout(r, 0))
 
     // Update URL
     const newUrl = new URL(window.location.href)

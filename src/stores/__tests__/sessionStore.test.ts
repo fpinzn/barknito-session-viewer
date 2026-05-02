@@ -17,6 +17,8 @@ describe('sessionStore', () => {
     expect(state.videoUrl).toBeNull()
     expect(state.depthVideoUrl).toBeNull()
     expect(state.audioUrl).toBeNull()
+    expect(state.videoStartOffsetMs).toBe(0)
+    expect(state.videoDurationMs).toBe(0)
   })
 
   it('loads pose data and builds frame list', () => {
@@ -86,6 +88,16 @@ describe('sessionStore', () => {
   it('sets audio URL', () => {
     useSessionStore.getState().setAudioUrl('blob:http://audio')
     expect(useSessionStore.getState().audioUrl).toBe('blob:http://audio')
+  })
+
+  it('sets video start offset', () => {
+    useSessionStore.getState().setVideoStartOffsetMs(15000)
+    expect(useSessionStore.getState().videoStartOffsetMs).toBe(15000)
+  })
+
+  it('sets video duration', () => {
+    useSessionStore.getState().setVideoDurationMs(45000)
+    expect(useSessionStore.getState().videoDurationMs).toBe(45000)
   })
 
   it('reset clears everything', () => {

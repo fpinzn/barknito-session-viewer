@@ -8,8 +8,7 @@ function formatEventType(type: string): string {
 
 export function EventList() {
   const gameEvents = useSessionStore(s => s.gameEvents)
-  const frameIdx = usePlaybackStore(s => s.currentFrameIdx)
-  const frames = useSessionStore(s => s.frames)
+  const currentSessionTimeMs = usePlaybackStore(s => s.currentSessionTimeMs)
 
   const handleClick = useCallback((idx: number) => {
     usePlaybackStore.getState().jumpToEvent(idx)
@@ -17,7 +16,7 @@ export function EventList() {
 
   if (gameEvents.length === 0) return null
 
-  const currentTs = frames[frameIdx]?.ts ?? 0
+  const currentTs = currentSessionTimeMs
 
   return (
     <div className="event-list">

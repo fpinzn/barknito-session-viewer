@@ -37,6 +37,16 @@ interface RebuildInput {
  */
 export function rebuildFrameList(input: RebuildInput): FrameListResult {
   const { sensorFrameMap, poseFrameMap, models: inputModels } = input
+  const poseEvents: PoseEvent[] = []
+
+  if (poseFrameMap) {
+    for (const [, entry] of poseFrameMap) {
+      if (entry.models.size > 0) {
+        poseEvents.push({ ts: entry.ts, models: entry.models })
+      }
+    }
+    poseEvents.sort((a, b) => a.ts - b.ts)
+  }
 
   let entries: Array<{ id: number; ts: number; sensor: SensorEntry | null }>
 
@@ -59,19 +69,24 @@ export function rebuildFrameList(input: RebuildInput): FrameListResult {
   const bootRelative = entries.filter(e => e.ts > 0 && e.ts < 1e12)
   if (bootRelative.length > 0) entries = bootRelative
 
+  // Some sessions contain one or two bogus sensor timestamps near 0ms
+  // before the real session clock begins. When pose data exists and starts
+  // much later, drop those startup stubs so frame 0 aligns with the real
+  // visible/pose timeline.
+  if (entries.length > 1 && poseEvents.length > 0) {
+    const firstPoseTs = poseEvents[0].ts
+    const STARTUP_STUB_MAX_MS = 1000
+    const ALIGNMENT_WINDOW_MS = 1000
+    const firstRealIdx = entries.findIndex(e =>
+      e.ts >= firstPoseTs - ALIGNMENT_WINDOW_MS && e.ts <= firstPoseTs + ALIGNMENT_WINDOW_MS,
+    )
+    if (firstRealIdx > 0 && entries[firstRealIdx].ts - entries[0].ts > STARTUP_STUB_MAX_MS) {
+      entries = entries.slice(firstRealIdx)
+    }
+  }
+
   const frames: Frame[] = entries.map(e => ({ id: e.id, ts: e.ts, sensor: e.sensor }))
   const models = inputModels ?? []
-
-  // Build sorted pose events timeline for timestamp-based skeleton lookup
-  const poseEvents: PoseEvent[] = []
-  if (poseFrameMap) {
-    for (const [, entry] of poseFrameMap) {
-      if (entry.models.size > 0) {
-        poseEvents.push({ ts: entry.ts, models: entry.models })
-      }
-    }
-    poseEvents.sort((a, b) => a.ts - b.ts)
-  }
 
   return { frames, models, poseEvents }
 }

@@ -1,26 +1,11 @@
 import { useRef, useEffect, useCallback } from 'react'
 import { useSessionStore } from '../../stores/sessionStore'
+import { usePlaybackStore } from '../../stores/playbackStore'
 import { depthFrameRef, rgbFrameRef } from '../../three/environment/PointCloud'
+import { computeVideoStartOffsetMs, computeVideoStartOffsetSec, mediaTimeForSession } from './video-timing'
 
-/**
- * Compute the video time (seconds) for a given frame index.
- * Session-relative recordings have small timestamps (< 5 min) and video
- * PTS starting at 0. Legacy boot-time recordings have large absolute
- * timestamps and need the first timestamp subtracted.
- */
-function videoTimeForFrame(frames: Array<{ ts: number }>, frameIdx: number, videoT0Ref: { current: number | null }): number {
-  if (frames.length === 0 || frameIdx >= frames.length) return 0
-
-  if (videoT0Ref.current === null) {
-    for (const f of frames) {
-      if (f.ts > 0) { videoT0Ref.current = f.ts; break }
-    }
-    if (videoT0Ref.current === null) return 0
-    if (videoT0Ref.current < 300000) videoT0Ref.current = 0
-  }
-
-  return Math.max(0, (frames[frameIdx].ts - videoT0Ref.current) / 1000)
-}
+const DRIFT_THRESHOLD_MS = 150
+const AUDIO_VOLUME = 0.5
 
 function destroyMediaElement(el: HTMLMediaElement) {
   el.pause()
@@ -29,22 +14,36 @@ function destroyMediaElement(el: HTMLMediaElement) {
   el.remove()
 }
 
+function prepareOffscreenMediaElement(el: HTMLMediaElement) {
+  el.style.position = 'fixed'
+  el.style.left = '-10000px'
+  el.style.top = '0'
+  el.style.width = '1px'
+  el.style.height = '1px'
+  el.style.opacity = '0'
+  el.style.pointerEvents = 'none'
+}
+
 export function useVideoSync() {
   const rgbVideoRef = useRef<HTMLVideoElement | null>(null)
   const depthVideoRef = useRef<HTMLVideoElement | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const rgbCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const depthCanvasRef = useRef<HTMLCanvasElement | null>(null)
-  const videoT0Ref = useRef<number | null>(null)
 
   const videoUrl = useSessionStore(s => s.videoUrl)
   const depthVideoUrl = useSessionStore(s => s.depthVideoUrl)
   const audioUrl = useSessionStore(s => s.audioUrl)
+  const sessionMeta = useSessionStore(s => s.sessionMeta)
+  const setVideoStartOffsetMs = useSessionStore(s => s.setVideoStartOffsetMs)
+  const setVideoDurationMs = useSessionStore(s => s.setVideoDurationMs)
 
   function drawRgbFrame() {
     const canvas = rgbCanvasRef.current
     const el = rgbVideoRef.current
     if (!canvas || !el) return
+    if (el.readyState < 2) return
+    if (canvas.width === 0 || canvas.height === 0) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.drawImage(el, 0, 0, canvas.width, canvas.height)
@@ -58,6 +57,8 @@ export function useVideoSync() {
     const canvas = depthCanvasRef.current
     const el = depthVideoRef.current
     if (!canvas || !el) return
+    if (el.readyState < 2) return
+    if (canvas.width === 0 || canvas.height === 0) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.drawImage(el, 0, 0, canvas.width, canvas.height)
@@ -67,14 +68,35 @@ export function useVideoSync() {
     depthFrameRef.height = canvas.height
   }
 
+  function clearRgbFrame() {
+    rgbFrameRef.current = null
+    rgbFrameRef.width = 0
+    rgbFrameRef.height = 0
+  }
+
+  function clearDepthFrame() {
+    depthFrameRef.current = null
+    depthFrameRef.width = 0
+    depthFrameRef.height = 0
+  }
+
   // RGB video
   useEffect(() => {
+    if (rgbVideoRef.current) {
+      destroyMediaElement(rgbVideoRef.current)
+      rgbVideoRef.current = null
+      rgbCanvasRef.current = null
+      clearRgbFrame()
+      rgbFrameRef.canvas = null
+    }
+
     if (!videoUrl) return
 
     const el = document.createElement('video')
     el.muted = true
     el.playsInline = true
-    el.style.display = 'none'
+    el.preload = 'auto'
+    prepareOffscreenMediaElement(el)
     document.body.appendChild(el)
     rgbVideoRef.current = el
 
@@ -85,30 +107,59 @@ export function useVideoSync() {
     el.addEventListener('loadedmetadata', () => {
       canvas.width = el.videoWidth
       canvas.height = el.videoHeight
+      const offsetMs = computeVideoStartOffsetMs(sessionMeta, el.duration)
+      setVideoStartOffsetMs(offsetMs)
+      setVideoDurationMs(Math.round(el.duration * 1000))
+
+      const frames = useSessionStore.getState().frames
+      if (frames.length > 0) {
+        const targetSessionTs = frames[0].ts + offsetMs
+        usePlaybackStore.getState().seekTo(targetSessionTs)
+      }
     })
+    el.addEventListener('loadeddata', drawRgbFrame)
     el.addEventListener('seeked', drawRgbFrame)
 
+    let cancelled = false
+    if ('requestVideoFrameCallback' in el) {
+      const onFrame = () => {
+        if (cancelled) return
+        drawRgbFrame()
+        el.requestVideoFrameCallback(onFrame)
+      }
+      el.requestVideoFrameCallback(onFrame)
+    }
+
     el.src = videoUrl
-    videoT0Ref.current = null
 
     return () => {
+      cancelled = true
       destroyMediaElement(el)
       rgbVideoRef.current = null
       rgbCanvasRef.current = null
-      rgbFrameRef.current = null
+      clearRgbFrame()
       rgbFrameRef.canvas = null
-      videoT0Ref.current = null
+      setVideoStartOffsetMs(0)
+      setVideoDurationMs(0)
     }
-  }, [videoUrl])
+  }, [sessionMeta, setVideoDurationMs, setVideoStartOffsetMs, videoUrl])
 
   // Depth video
   useEffect(() => {
+    if (depthVideoRef.current) {
+      destroyMediaElement(depthVideoRef.current)
+      depthVideoRef.current = null
+      depthCanvasRef.current = null
+      clearDepthFrame()
+    }
+
     if (!depthVideoUrl) return
 
     const el = document.createElement('video')
     el.muted = true
     el.playsInline = true
-    el.style.display = 'none'
+    el.preload = 'auto'
+    prepareOffscreenMediaElement(el)
     document.body.appendChild(el)
     depthVideoRef.current = el
 
@@ -119,24 +170,42 @@ export function useVideoSync() {
       canvas.width = el.videoWidth
       canvas.height = el.videoHeight
     })
+    el.addEventListener('loadeddata', drawDepthFrame)
     el.addEventListener('seeked', drawDepthFrame)
+
+    let cancelled = false
+    if ('requestVideoFrameCallback' in el) {
+      const onFrame = () => {
+        if (cancelled) return
+        drawDepthFrame()
+        el.requestVideoFrameCallback(onFrame)
+      }
+      el.requestVideoFrameCallback(onFrame)
+    }
 
     el.src = depthVideoUrl
 
     return () => {
+      cancelled = true
       destroyMediaElement(el)
       depthVideoRef.current = null
       depthCanvasRef.current = null
-      depthFrameRef.current = null
+      clearDepthFrame()
     }
   }, [depthVideoUrl])
 
   // Audio
   useEffect(() => {
+    if (audioRef.current) {
+      destroyMediaElement(audioRef.current)
+      audioRef.current = null
+    }
+
     if (!audioUrl) return
 
     const el = document.createElement('audio')
-    el.style.display = 'none'
+    el.preload = 'auto'
+    prepareOffscreenMediaElement(el)
     document.body.appendChild(el)
     audioRef.current = el
     el.src = audioUrl
@@ -147,41 +216,83 @@ export function useVideoSync() {
     }
   }, [audioUrl])
 
-  const seekToFrame = useCallback((frameIdx: number) => {
-    const frames = useSessionStore.getState().frames
-    const t = videoTimeForFrame(frames, frameIdx, videoT0Ref)
+  /**
+   * Per-tick sync: mirrors play/pause and speed to video + audio elements,
+   * and drift-corrects when an element's currentTime diverges from the
+   * frame-derived target time by more than DRIFT_THRESHOLD_MS.
+   *
+   * Natural playback (small per-tick advances) does NOT trigger a seek — the
+   * elements play freely via .play(). User scrubs (large frame jumps) exceed
+   * the threshold and re-sync via currentTime assignment.
+   *
+   * Mirrors the `ReplayVideoBackground` pattern from the Unity replayer.
+   */
+  const syncMedia = useCallback((sessionTimeMs: number, isPlaying: boolean, speed: number) => {
+    const sessionTimeSec = Math.max(0, sessionTimeMs / 1000)
 
-    if (depthVideoRef.current) {
-      if (Math.abs(depthVideoRef.current.currentTime - t) < 0.001) {
-        drawDepthFrame() // already at target time, draw immediately
-      } else {
-        depthVideoRef.current.currentTime = t
+    const syncEl = (el: HTMLMediaElement | null, canPlayWithoutGesture: boolean) => {
+      if (!el) return
+      const videoStartOffsetSec = computeVideoStartOffsetSec(sessionMeta, el.duration)
+      const isBeforeVisibleStart = sessionTimeSec < videoStartOffsetSec
+
+      if (isBeforeVisibleStart) {
+        if (!el.paused) {
+          el.pause()
+        }
+        if (!el.seeking && el.readyState >= 1) {
+          const base = el.seekable.length > 0 ? el.seekable.start(0) : 0
+          if (el.currentTime !== base) {
+            el.currentTime = base
+          }
+        }
+        return
+      }
+
+      if (isPlaying) {
+        if (el.paused && (canPlayWithoutGesture || el.readyState >= 2)) {
+          el.play().catch(() => { /* play() may reject during concurrent seek */ })
+        }
+        if (el.playbackRate !== speed) el.playbackRate = speed
+      } else if (!el.paused) {
+        el.pause()
+      }
+      // Skip drift correction while a seek is in flight — back-to-back
+      // currentTime writes cancel each other and the video never settles.
+      if (!el.seeking && el.readyState >= 1 && isFinite(el.duration)) {
+        const target = mediaTimeForSession(el, sessionTimeSec, videoStartOffsetSec)
+        const driftMs = Math.abs(el.currentTime - target) * 1000
+        if (driftMs > DRIFT_THRESHOLD_MS) {
+          el.currentTime = target
+        }
       }
     }
-    if (rgbVideoRef.current) {
-      if (Math.abs(rgbVideoRef.current.currentTime - t) < 0.001) {
-        drawRgbFrame() // already at target time, draw immediately
-      } else {
-        rgbVideoRef.current.currentTime = t
-      }
-    }
-    if (audioRef.current) {
-      audioRef.current.currentTime = t
-    }
-  }, [])
 
-  const syncAudioPlayback = useCallback((isPlaying: boolean, speed: number, volume: number) => {
-    const audio = audioRef.current
-    if (!audio) return
-
-    if (isPlaying) {
-      audio.playbackRate = speed
-      audio.volume = volume
-      audio.play().catch(() => { /* autoplay blocked */ })
+    if (rgbVideoRef.current && sessionTimeSec < computeVideoStartOffsetSec(sessionMeta, rgbVideoRef.current.duration)) {
+      clearRgbFrame()
     } else {
-      audio.pause()
+      syncEl(rgbVideoRef.current, true)
+      if (rgbVideoRef.current && rgbVideoRef.current.readyState >= 2 && !rgbVideoRef.current.seeking) {
+        drawRgbFrame()
+      }
     }
-  }, [])
 
-  return { seekToFrame, syncAudioPlayback, videoT0Ref }
+    if (depthVideoRef.current && sessionTimeSec < computeVideoStartOffsetSec(sessionMeta, depthVideoRef.current.duration)) {
+      clearDepthFrame()
+    } else {
+      syncEl(depthVideoRef.current, true)
+      if (depthVideoRef.current && depthVideoRef.current.readyState >= 2 && !depthVideoRef.current.seeking) {
+        drawDepthFrame()
+      }
+    }
+
+    const audio = audioRef.current
+    if (audio) {
+      if (isPlaying && audio.paused && audio.readyState >= 2) {
+        audio.volume = AUDIO_VOLUME
+      }
+      syncEl(audio, false)
+    }
+  }, [sessionMeta])
+
+  return { syncMedia }
 }

@@ -13,6 +13,8 @@ describe('playbackStore', () => {
     expect(state.isPlaying).toBe(false)
     expect(state.currentFrameIdx).toBe(0)
     expect(state.playbackSpeed).toBe(1)
+    expect(state.currentSessionTimeMs).toBe(0)
+    expect(state.currentVisibleTimeMs).toBe(0)
   })
 
   it('togglePlay flips isPlaying', () => {
@@ -112,5 +114,11 @@ describe('playbackStore', () => {
   it('setFrameIdx sets frame directly', () => {
     usePlaybackStore.getState().setFrameIdx(5)
     expect(usePlaybackStore.getState().currentFrameIdx).toBe(5)
+  })
+
+  it('setPlaybackTimes updates the playhead clocks', () => {
+    usePlaybackStore.getState().setPlaybackTimes(1234, 567)
+    expect(usePlaybackStore.getState().currentSessionTimeMs).toBe(1234)
+    expect(usePlaybackStore.getState().currentVisibleTimeMs).toBe(567)
   })
 })

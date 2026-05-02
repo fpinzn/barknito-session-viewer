@@ -1,73 +1,64 @@
-# React + TypeScript + Vite
+# Session Viewer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Browser-based session viewer built with React, TypeScript, Vite, and `react-three-fiber`.
 
-Currently, two official plugins are available:
+## Local Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Requirements:
+- Node.js 20+
+- npm
 
-## React Compiler
+Commands:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Production build:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build
 ```
+
+## Deployment
+
+This app is a static frontend. The simplest deployment target for the current codebase is Cloudflare Pages.
+
+### Cloudflare Pages settings
+
+- Framework preset: `Vite`
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Root directory: `/`
+- Node.js version: `20`
+
+You can deploy by connecting the repository in the Cloudflare Pages dashboard, or by using Wrangler externally if you already have it installed.
+
+### Important: Google OAuth allowed origins
+
+The app loads Google Identity Services in the browser and uses the OAuth client ID hardcoded in [src/features/gcs-browser/auth.ts](/Users/francisco/dev/barknito/session-viewer/src/features/gcs-browser/auth.ts:1).
+
+After Pages gives you a domain, add that exact origin to the Google Cloud Console for this OAuth client:
+
+- Authorized JavaScript origins: `https://<your-pages-domain>`
+
+If you use a custom domain, add that origin too:
+
+- Authorized JavaScript origins: `https://<your-custom-domain>`
+
+Without this, `Sign in with Google` will fail in production even if the site itself deploys correctly.
+
+### Deploy steps
+
+1. Push this repository to GitHub.
+2. In Cloudflare, create a new Pages project from the repo.
+3. Use the build settings listed above.
+4. Deploy once and note the generated production URL.
+5. Add that URL to the OAuth client allowed origins in Google Cloud Console.
+6. Redeploy if needed after updating OAuth settings.
+
+## Notes
+
+- The app does not currently use client-side routing, so no SPA fallback rule is required.
+- The current production build succeeds, but the main JS bundle is large enough for Vite to warn about chunk size during build.

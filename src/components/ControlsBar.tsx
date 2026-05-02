@@ -3,20 +3,29 @@ import { usePlaybackStore } from '../stores/playbackStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useUIStore } from '../stores/uiStore'
 import { EventMarker } from '../features/timeline/EventMarker'
+import { sessionTimeForVisibleTimeMs, visibleTimeForFrameMs } from '../features/viewer/video-timing'
 
 export function ControlsBar() {
   const isPlaying = usePlaybackStore(s => s.isPlaying)
   const frameIdx = usePlaybackStore(s => s.currentFrameIdx)
+  const currentSessionTimeMs = usePlaybackStore(s => s.currentSessionTimeMs)
+  const currentVisibleTimeMs = usePlaybackStore(s => s.currentVisibleTimeMs)
   const playbackSpeed = usePlaybackStore(s => s.playbackSpeed)
   const frames = useSessionStore(s => s.frames)
   const gameEvents = useSessionStore(s => s.gameEvents)
+  const videoStartOffsetMs = useSessionStore(s => s.videoStartOffsetMs)
+  const videoDurationMs = useSessionStore(s => s.videoDurationMs)
   const totalFrames = frames.length
 
   const [volume, setVolume] = useState(0.5)
   const [muted, setMuted] = useState(false)
   const progressRef = useRef<HTMLDivElement>(null)
 
-  const pct = totalFrames > 1 ? (frameIdx / (totalFrames - 1)) * 100 : 0
+  const lastVisibleFrameMs = totalFrames > 1
+    ? visibleTimeForFrameMs(frames, totalFrames - 1, videoStartOffsetMs)
+    : 0
+  const visibleRangeMs = Math.max(1, videoDurationMs, lastVisibleFrameMs)
+  const pct = (currentVisibleTimeMs / visibleRangeMs) * 100
 
   const handlePlayPause = useCallback(() => {
     usePlaybackStore.getState().togglePlay()
@@ -35,10 +44,9 @@ export function ControlsBar() {
     if (!wrap) return
     const rect = wrap.getBoundingClientRect()
     const p = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-    const frames = useSessionStore.getState().frames
-    const idx = Math.floor(p * (frames.length - 1))
-    usePlaybackStore.getState().setFrameIdx(Math.max(0, Math.min(frames.length - 1, idx)))
-  }, [])
+    const sessionTimeMs = sessionTimeForVisibleTimeMs(frames, p * visibleRangeMs, videoStartOffsetMs)
+    usePlaybackStore.getState().seekTo(sessionTimeMs)
+  }, [frames, videoStartOffsetMs, visibleRangeMs])
 
   const handleProgressClick = useCallback((e: React.MouseEvent) => {
     seekFromEvent(e.clientX)
@@ -75,20 +83,19 @@ export function ControlsBar() {
     useUIStore.getState().setActivePanel('gcs')
   }, [])
 
-  const currentTs = frames[frameIdx]?.ts ?? 0
+  const currentTs = currentSessionTimeMs
   const firstTs = frames[0]?.ts ?? 0
-  const lastTs = frames[frames.length - 1]?.ts ?? 0
-  const range = lastTs - firstTs
+  const range = Math.max(1, visibleRangeMs)
 
   const eventMarkers = useMemo(() => {
     if (range <= 0 || gameEvents.length === 0) return []
     return gameEvents.map((evt, idx) => {
-      const markerPct = ((evt.timestampMs - firstTs) / range) * 100
+      const markerPct = ((evt.timestampMs - firstTs - videoStartOffsetMs) / range) * 100
       if (markerPct < 0 || markerPct > 100) return null
       const name = evt.type.replace(/([a-z])([A-Z])/g, '$1 $2')
       return { idx, pct: markerPct, label: name, ts: evt.timestampMs }
     }).filter((m): m is NonNullable<typeof m> => m !== null)
-  }, [gameEvents, firstTs, range])
+  }, [gameEvents, firstTs, range, videoStartOffsetMs])
 
   return (
     <div className={`controls-bar${totalFrames > 0 ? '' : ' hidden'}`}>

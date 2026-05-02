@@ -52,6 +52,25 @@ describe('rebuildFrameList', () => {
     expect(result.models).toEqual([])
   })
 
+  it('drops bogus startup sensor timestamps when pose starts much later', () => {
+    const lm = new Map<string, Landmark>([['nose', { x: 0.5, y: 0.5, depth: 1, conf: 0.9 }]])
+    const sensorFrameMap = new Map([
+      [1, { ts: 1, pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 } }],
+      [2, { ts: 19258, pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 } }],
+      [3, { ts: 19281, pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 } }],
+    ])
+    const poseFrameMap = new Map([
+      [10, { ts: 19411, models: new Map([['dog', lm]]) }],
+      [11, { ts: 19511, models: new Map([['dog', lm]]) }],
+    ])
+
+    const result = rebuildFrameList({ sensorFrameMap, poseFrameMap, models: ['dog'] })
+
+    expect(result.frames.length).toBe(2)
+    expect(result.frames[0].ts).toBe(19258)
+    expect(result.poseEvents[0].ts).toBe(19411)
+  })
+
   it('builds sorted pose events timeline', () => {
     const lm = new Map<string, Landmark>([['nose', { x: 0.5, y: 0.5, depth: 1, conf: 0.9 }]])
     const poseFrameMap = new Map([

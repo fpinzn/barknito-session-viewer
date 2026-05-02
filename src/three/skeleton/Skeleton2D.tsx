@@ -21,6 +21,7 @@ export function Skeleton2D() {
   const videoAlpha = useUIStore(s => s.videoAlpha)
   const skelMsOffset = useUIStore(s => s.skelMsOffset)
   const frameIdx = usePlaybackStore(s => s.currentFrameIdx)
+  const currentSessionTimeMs = usePlaybackStore(s => s.currentSessionTimeMs)
   const frames = useSessionStore(s => s.frames)
   const poseEvents = useSessionStore(s => s.poseEvents)
   const intrinsics = useSessionStore(s => s.intrinsics)
@@ -31,7 +32,7 @@ export function Skeleton2D() {
     const frame = frames[frameIdx]
     if (!frame) return null
 
-    const targetTs = frame.ts + skelMsOffset
+    const targetTs = currentSessionTimeMs + skelMsOffset
     const skelModels = findNearestPoseModels(poseEvents, targetTs)
     if (skelModels.size === 0) return null
 
@@ -96,7 +97,7 @@ export function Skeleton2D() {
     }
 
     return <group>{joints}{bones}</group>
-  }, [show2D, frameIdx, frames, poseEvents, intrinsics, confidenceThreshold, videoAlpha, skelMsOffset])
+  }, [show2D, frameIdx, frames, poseEvents, intrinsics, confidenceThreshold, videoAlpha, skelMsOffset, currentSessionTimeMs])
 
   return elements
 }

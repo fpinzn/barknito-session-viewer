@@ -40,7 +40,7 @@ export function KeyboardShortcuts() {
         case 'BracketLeft': {
           e.preventDefault()
           const { gameEvents } = useSessionStore.getState()
-          const currentTs = frames[usePlaybackStore.getState().currentFrameIdx]?.ts ?? 0
+          const currentTs = usePlaybackStore.getState().currentSessionTimeMs
           // Find previous event (last event before current time)
           for (let i = gameEvents.length - 1; i >= 0; i--) {
             if (gameEvents[i].timestampMs < currentTs - 50) {
@@ -53,7 +53,7 @@ export function KeyboardShortcuts() {
         case 'BracketRight': {
           e.preventDefault()
           const { gameEvents: events } = useSessionStore.getState()
-          const ts = frames[usePlaybackStore.getState().currentFrameIdx]?.ts ?? 0
+          const ts = usePlaybackStore.getState().currentSessionTimeMs
           // Find next event (first event after current time)
           for (let i = 0; i < events.length; i++) {
             if (events[i].timestampMs > ts + 50) {

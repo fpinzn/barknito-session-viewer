@@ -28,6 +28,7 @@ export function Skeleton3D() {
   const confidenceThreshold = useUIStore(s => s.confidenceThreshold)
   const skelMsOffset = useUIStore(s => s.skelMsOffset)
   const frameIdx = usePlaybackStore(s => s.currentFrameIdx)
+  const currentSessionTimeMs = usePlaybackStore(s => s.currentSessionTimeMs)
   const frames = useSessionStore(s => s.frames)
   const poseEvents = useSessionStore(s => s.poseEvents)
   const intrinsics = useSessionStore(s => s.intrinsics)
@@ -38,7 +39,7 @@ export function Skeleton3D() {
     const frame = frames[frameIdx]
     if (!frame) return null
 
-    const targetTs = frame.ts + skelMsOffset
+    const targetTs = currentSessionTimeMs + skelMsOffset
     const skelModels = findNearestPoseModels(poseEvents, targetTs)
     if (skelModels.size === 0) return null
 
@@ -98,7 +99,7 @@ export function Skeleton3D() {
     }
 
     return <group>{joints}{bones}</group>
-  }, [show3D, frameIdx, frames, poseEvents, intrinsics, confidenceThreshold, skelMsOffset])
+  }, [show3D, frameIdx, frames, poseEvents, intrinsics, confidenceThreshold, skelMsOffset, currentSessionTimeMs])
 
   return elements
 }
