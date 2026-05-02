@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add a persistent "ignored session" flag to the session browser so users can mark test or otherwise irrelevant sessions directly from the thumbnail grid. Ignored sessions remain visible in the UI but render dimmed, and the ignore state becomes a shared source of truth for future bulk export tooling outside this UI.
+Add a persistent "ignored session" flag to the session browser so users can mark test or otherwise irrelevant sessions directly from the thumbnail grid. Ignored sessions should disappear from the normal device/date views and instead appear in separate ignored-session device/date views. The ignore state becomes a shared source of truth for future bulk export tooling outside this UI.
 
 ## Scope
 
@@ -19,7 +19,7 @@ This design does not cover:
 - bulk export UI inside this app
 - changes to Label Studio itself
 - per-user ignore state
-- hiding ignored sessions from the browser
+- dimming ignored sessions inside the main browser views
 
 ## Current Constraints
 
@@ -170,11 +170,12 @@ Add a checkbox overlay at the top of each session thumbnail card.
 Behavior:
 
 - checked means ignored
-- ignored cards remain visible and render at dimmed opacity
+- ignored sessions are removed from the normal device/date views
+- ignored sessions are shown in separate ignored-session device/date views
 - clicking the checkbox toggles ignore state without opening the session
 - clicking elsewhere on the card still opens the session
 
-The dimmed state should be derived entirely from the ignored-session map returned by the API.
+The visible grouping should be derived entirely from the ignored-session map returned by the API.
 
 ### State Flow
 
@@ -183,7 +184,8 @@ On browser load or environment switch:
 1. load devices and sessions as the app does today
 2. fetch ignored-session rows for the current environment
 3. derive a local lookup map keyed by `session_path`
-4. render checkbox state and dimmed alpha from that lookup
+4. partition sessions into normal and ignored groups from that lookup
+5. render the normal and ignored sections separately
 
 On toggle:
 
@@ -193,15 +195,34 @@ On toggle:
 
 ### Visual Behavior
 
-Ignored sessions stay in the grid and are not hidden or filtered by default.
+Ignored sessions do not stay in the main session grid/list. They move into dedicated ignored-session sections.
 
 The UI should show enough context to make the state obvious:
 
 - checked overlay
-- dimmed card alpha
+- separate ignored-session sections for both device and date browsing modes
 - optional tooltip using `ignored_by_email` and `ignored_at` if the design already has an appropriate hover pattern
 
 The tooltip is optional and should only be added if it stays small and does not force extra complexity.
+
+### Section Layout
+
+Both browsing modes should render two distinct result areas:
+
+- active sessions
+- ignored sessions
+
+For `By Device`:
+
+- the normal device groups should only contain non-ignored sessions
+- a separate ignored area should show ignored sessions grouped by device
+
+For `By Date`:
+
+- the normal date groups should only contain non-ignored sessions
+- a separate ignored area should show ignored sessions grouped by date
+
+The ignored sections should use the same card component and open-session behavior as the main sections to avoid duplicated UI logic.
 
 ## Server Responsibilities
 
@@ -252,8 +273,8 @@ Backups:
 Minimum verification for implementation:
 
 1. Signed-in user with bucket access loads the browser and sees ignored state for the selected environment.
-2. Toggling ignore on a session dims the card and persists a row with `environment`, `device_id`, `session_id`, `session_path`, `ignored_at`, and `ignored_by_email`.
-3. Toggling back removes the row and restores normal opacity.
+2. Toggling ignore on a session removes it from the normal section, places it in the ignored section, and persists a row with `environment`, `device_id`, `session_id`, `session_path`, `ignored_at`, and `ignored_by_email`.
+3. Toggling back removes the row and moves the session from the ignored section back into the normal section.
 4. A user without bucket access receives `403` from the API.
 5. The unified Cloud Run deployment serves both the frontend and API from the same origin.
 
@@ -261,7 +282,7 @@ Minimum verification for implementation:
 
 - Ignore state is global, not per-user.
 - Ignore state is scoped by environment.
-- Ignored sessions remain visible with dimmed alpha.
+- Ignored sessions move to dedicated ignored-session device/date sections.
 - The UI does not implement bulk export for this feature.
 - The API lives in this repo.
 - Deployment is unified on Cloud Run.
