@@ -12,6 +12,7 @@ import { EventList } from '../features/timeline/EventList'
 import { GCSBrowser } from '../features/gcs-browser/GCSBrowser'
 import { ExportPanel } from '../features/label-studio/ExportPanel'
 import { FileInspector } from '../features/gcs-browser/FileInspector'
+import { VIEWER_BUILD_COUNTER } from './build-counter'
 
 export function Layout() {
   const hasData = useSessionStore(s =>
@@ -73,6 +74,9 @@ export function Layout() {
       </div>
 
       <ControlsBar />
+      <div className="build-counter-badge">
+        build {VIEWER_BUILD_COUNTER}
+      </div>
 
       {hasData && (
         <>

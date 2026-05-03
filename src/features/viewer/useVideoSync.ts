@@ -267,22 +267,14 @@ export function useVideoSync() {
       }
     }
 
-    if (rgbVideoRef.current && sessionTimeSec < computeVideoStartOffsetSec(sessionMeta, rgbVideoRef.current.duration)) {
-      clearRgbFrame()
-    } else {
-      syncEl(rgbVideoRef.current, true)
-      if (rgbVideoRef.current && rgbVideoRef.current.readyState >= 2 && !rgbVideoRef.current.seeking) {
-        drawRgbFrame()
-      }
+    syncEl(rgbVideoRef.current, true)
+    if (rgbVideoRef.current && rgbVideoRef.current.readyState >= 2 && !rgbVideoRef.current.seeking) {
+      drawRgbFrame()
     }
 
-    if (depthVideoRef.current && sessionTimeSec < computeVideoStartOffsetSec(sessionMeta, depthVideoRef.current.duration)) {
-      clearDepthFrame()
-    } else {
-      syncEl(depthVideoRef.current, true)
-      if (depthVideoRef.current && depthVideoRef.current.readyState >= 2 && !depthVideoRef.current.seeking) {
-        drawDepthFrame()
-      }
+    syncEl(depthVideoRef.current, true)
+    if (depthVideoRef.current && depthVideoRef.current.readyState >= 2 && !depthVideoRef.current.seeking) {
+      drawDepthFrame()
     }
 
     const audio = audioRef.current

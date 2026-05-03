@@ -3,7 +3,7 @@ import { usePlaybackStore } from '../stores/playbackStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useUIStore } from '../stores/uiStore'
 import { EventMarker } from '../features/timeline/EventMarker'
-import { sessionTimeForVisibleTimeMs, visibleTimeForFrameMs } from '../features/viewer/video-timing'
+import { sessionTimeForVisibleTimeMs, visibleTimeForFrameMs, visibleTimeForSessionTimeMs } from '../features/viewer/video-timing'
 
 export function ControlsBar() {
   const isPlaying = usePlaybackStore(s => s.isPlaying)
@@ -84,18 +84,17 @@ export function ControlsBar() {
   }, [])
 
   const currentTs = currentSessionTimeMs
-  const firstTs = frames[0]?.ts ?? 0
   const range = Math.max(1, visibleRangeMs)
 
   const eventMarkers = useMemo(() => {
     if (range <= 0 || gameEvents.length === 0) return []
     return gameEvents.map((evt, idx) => {
-      const markerPct = ((evt.timestampMs - firstTs - videoStartOffsetMs) / range) * 100
+      const markerPct = (visibleTimeForSessionTimeMs(frames, evt.timestampMs, videoStartOffsetMs) / range) * 100
       if (markerPct < 0 || markerPct > 100) return null
       const name = evt.type.replace(/([a-z])([A-Z])/g, '$1 $2')
       return { idx, pct: markerPct, label: name, ts: evt.timestampMs }
     }).filter((m): m is NonNullable<typeof m> => m !== null)
-  }, [gameEvents, firstTs, range, videoStartOffsetMs])
+  }, [frames, gameEvents, range, videoStartOffsetMs])
 
   return (
     <div className={`controls-bar${totalFrames > 0 ? '' : ' hidden'}`}>

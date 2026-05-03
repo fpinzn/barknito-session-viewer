@@ -58,4 +58,5 @@ describe('mediaTimeForSession', () => {
 
     expect(targetSec).toBe(15)
   })
+
 })
