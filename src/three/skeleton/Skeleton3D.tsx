@@ -3,7 +3,6 @@ import { useSessionStore } from '../../stores/sessionStore'
 import { usePlaybackStore } from '../../stores/playbackStore'
 import { useUIStore } from '../../stores/uiStore'
 import { findNearestPoseModels } from '../../features/viewer/frame-utils'
-import { skeletonSessionTimeForVisibleTimeMs } from '../../features/viewer/video-timing'
 import { unproject } from '../../features/viewer/unproject'
 import { getSkeletonDef } from '../../constants'
 import type { Landmark } from '../../types'
@@ -29,11 +28,9 @@ export function Skeleton3D() {
   const confidenceThreshold = useUIStore(s => s.confidenceThreshold)
   const skelMsOffset = useUIStore(s => s.skelMsOffset)
   const frameIdx = usePlaybackStore(s => s.currentFrameIdx)
-  const currentVisibleTimeMs = usePlaybackStore(s => s.currentVisibleTimeMs)
   const frames = useSessionStore(s => s.frames)
   const poseEvents = useSessionStore(s => s.poseEvents)
   const intrinsics = useSessionStore(s => s.intrinsics)
-  const videoStartOffsetMs = useSessionStore(s => s.videoStartOffsetMs)
 
   const elements = useMemo(() => {
     if (!show3D || frames.length === 0) return null
@@ -41,14 +38,7 @@ export function Skeleton3D() {
     const frame = frames[frameIdx]
     if (!frame) return null
 
-    const skeletonTimeMs = skeletonSessionTimeForVisibleTimeMs(
-      frames,
-      currentVisibleTimeMs,
-      videoStartOffsetMs,
-    )
-    if (skeletonTimeMs === null) return null
-
-    const targetTs = skeletonTimeMs + skelMsOffset
+    const targetTs = frame.ts + skelMsOffset
     const skelModels = findNearestPoseModels(poseEvents, targetTs)
     if (skelModels.size === 0) return null
 
@@ -108,7 +98,7 @@ export function Skeleton3D() {
     }
 
     return <group>{joints}{bones}</group>
-  }, [show3D, frameIdx, frames, poseEvents, intrinsics, confidenceThreshold, skelMsOffset, currentVisibleTimeMs, videoStartOffsetMs])
+  }, [show3D, frameIdx, frames, poseEvents, intrinsics, confidenceThreshold, skelMsOffset])
 
   return elements
 }

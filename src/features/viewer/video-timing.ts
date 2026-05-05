@@ -59,12 +59,3 @@ export function visibleTimeForSessionTimeMs(frames: Frame[], sessionTimeMs: numb
   if (frames.length === 0) return 0
   return Math.max(0, sessionTimeMs - frames[0].ts - videoStartOffsetMs)
 }
-
-export function skeletonSessionTimeForVisibleTimeMs(
-  frames: Frame[],
-  visibleTimeMs: number,
-  _videoStartOffsetMs: number,
-): number | null {
-  if (frames.length === 0) return null
-  return frames[0].ts + Math.max(0, visibleTimeMs)
-}

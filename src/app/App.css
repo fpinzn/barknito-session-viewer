@@ -469,17 +469,20 @@ body {
 
 .build-counter-badge {
   position: fixed;
-  left: 12px;
-  bottom: 12px;
+  top: 14px;
+  right: 16px;
   z-index: 30;
-  padding: 4px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.7);
-  color: #d7d7d7;
-  font-size: 12px;
-  line-height: 1;
+  max-width: 320px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: rgba(15, 15, 15, 0.36);
+  color: rgba(231, 231, 231, 0.62);
+  font-size: 11px;
+  line-height: 1.35;
+  font-style: italic;
   pointer-events: none;
+  backdrop-filter: blur(4px);
+  text-align: right;
 }
 
 /* ─── GCS Browser ────────────────────────────────────────────────── */

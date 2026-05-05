@@ -3,7 +3,6 @@ import {
   computeVideoStartOffsetMs,
   findNearestFrameIdx,
   sessionTimeForVisibleTimeMs,
-  skeletonSessionTimeForVisibleTimeMs,
   visibleTimeForFrameMs,
 } from '../video-timing'
 import type { Frame } from '../frame-utils'
@@ -53,15 +52,4 @@ describe('video timing helpers', () => {
     expect(idx).toBe(1)
   })
 
-  it('starts skeleton playback at visible time zero', () => {
-    const frames: Frame[] = [
-      { id: 1, ts: 1000, sensor: null },
-      { id: 2, ts: 1400, sensor: null },
-      { id: 3, ts: 1800, sensor: null },
-    ]
-
-    expect(skeletonSessionTimeForVisibleTimeMs(frames, 0, 15000)).toBe(1000)
-    expect(skeletonSessionTimeForVisibleTimeMs(frames, 400, 15000)).toBe(1400)
-    expect(skeletonSessionTimeForVisibleTimeMs(frames, 800, 15000)).toBe(1800)
-  })
 })

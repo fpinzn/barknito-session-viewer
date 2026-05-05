@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Layout } from '../Layout'
-import { VIEWER_BUILD_COUNTER } from '../build-counter'
+import { VIEWER_BUILD_LABEL } from '../build-counter'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useUIStore } from '../../stores/uiStore'
 
@@ -54,6 +54,6 @@ describe('Layout', () => {
   it('shows the current build counter badge', () => {
     render(<Layout />)
 
-    expect(screen.getByText(`build ${VIEWER_BUILD_COUNTER}`)).toBeInTheDocument()
+    expect(screen.getByText(VIEWER_BUILD_LABEL)).toBeInTheDocument()
   })
 })

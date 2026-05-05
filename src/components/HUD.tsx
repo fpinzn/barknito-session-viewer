@@ -2,7 +2,7 @@ import { useSessionStore } from '../stores/sessionStore'
 import { usePlaybackStore } from '../stores/playbackStore'
 import { findNearestPoseModels } from '../features/viewer/frame-utils'
 import { useUIStore } from '../stores/uiStore'
-import { skeletonSessionTimeForVisibleTimeMs, visibleTimeForFrameMs } from '../features/viewer/video-timing'
+import { visibleTimeForFrameMs } from '../features/viewer/video-timing'
 
 export function HUD() {
   const frames = useSessionStore(s => s.frames)
@@ -21,10 +21,7 @@ export function HUD() {
   const frame = frames[frameIdx]
   if (!frame) return null
 
-  const skeletonTimeMs = skeletonSessionTimeForVisibleTimeMs(frames, currentVisibleTimeMs, videoStartOffsetMs)
-  const skelModels = skeletonTimeMs === null
-    ? new Map()
-    : findNearestPoseModels(poseEvents, skeletonTimeMs + skelMsOffset)
+  const skelModels = findNearestPoseModels(poseEvents, frame.ts + skelMsOffset)
   const frameVisibleTimeMs = visibleTimeForFrameMs(frames, frameIdx, videoStartOffsetMs)
   const firstFrameTs = frames[0]?.ts ?? 0
   const lastFrameTs = frames[frames.length - 1]?.ts ?? 0
