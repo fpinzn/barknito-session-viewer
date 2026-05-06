@@ -1,3 +1,3 @@
-export const VIEWER_BUILD_COUNTER: number = 13
+export const VIEWER_BUILD_COUNTER: number = 14
 export const VIEWER_VERSION: string = 'v0.1.8'
 export const VIEWER_BUILD_LABEL: string = `${VIEWER_VERSION}+build.${VIEWER_BUILD_COUNTER}`

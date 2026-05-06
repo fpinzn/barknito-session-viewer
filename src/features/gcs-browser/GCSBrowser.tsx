@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { loadToken, trySilentRefresh, getToken } from './auth'
 import { loadFolder, type LoadFolderProgress } from './gcsApi'
+import { listIgnoredSessions, setIgnoredSession } from './ignoredSessionsApi'
 import { SignIn } from './SignIn'
 import { FolderTree } from './FolderTree'
 import { useSessionStore } from '../../stores/sessionStore'
 import { usePlaybackStore } from '../../stores/playbackStore'
 import { useUIStore } from '../../stores/uiStore'
+import { parseSessionIdentity, type IgnoredSessionRow } from './ignoredSessionsModel'
 
 type BrowserState = 'loading' | 'signin' | 'browse' | 'loading-session'
 
@@ -16,6 +18,23 @@ export function GCSBrowser() {
   })
   const [progress, setProgress] = useState<LoadFolderProgress | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [ignoredSessions, setIgnoredSessions] = useState<IgnoredSessionRow[]>([])
+
+  const loadIgnoredSessions = useCallback(async (environment: string) => {
+    const token = getToken()
+    if (!token) {
+      setIgnoredSessions([])
+      return
+    }
+
+    try {
+      const rows = await listIgnoredSessions(environment)
+      setIgnoredSessions(rows)
+    } catch (loadError) {
+      setIgnoredSessions([])
+      setError(loadError instanceof Error ? loadError.message : 'Failed to load ignored sessions')
+    }
+  }, [])
 
   // On mount: try to restore token
   useEffect(() => {
@@ -56,6 +75,11 @@ export function GCSBrowser() {
     init()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (state !== 'browse') return
+    void loadIgnoredSessions(env)
+  }, [env, loadIgnoredSessions, state])
 
   // Handle browser back/forward navigation
   useEffect(() => {
@@ -144,8 +168,36 @@ export function GCSBrowser() {
   }, [])
 
   const handleEnvChange = useCallback((newEnv: string) => {
+    setError(null)
     setEnv(newEnv)
   }, [])
+
+  const handleToggleIgnored = useCallback(async (sessionPath: string, ignored: boolean) => {
+    setError(null)
+    try {
+      await setIgnoredSession(env, sessionPath, ignored)
+      const identity = parseSessionIdentity(sessionPath)
+      setIgnoredSessions((previous) => {
+        if (ignored) {
+          return [
+            ...previous,
+            {
+              environment: env,
+              deviceId: identity.deviceId,
+              sessionId: identity.sessionId,
+              sessionPath,
+              ignoredAt: '',
+              ignoredByEmail: '',
+            },
+          ]
+        }
+
+        return previous.filter((row) => row.sessionPath !== sessionPath)
+      })
+    } catch (toggleError) {
+      setError(toggleError instanceof Error ? toggleError.message : 'Failed to update ignored session')
+    }
+  }, [env])
 
   if (state === 'loading') {
     return (
@@ -210,7 +262,12 @@ export function GCSBrowser() {
       </div>
       <div className="gcs-hint">browse or drag your session files</div>
       {error && <div className="gcs-error">{error}</div>}
-      <FolderTree env={env} onSelectFolder={handleSelectFolder} />
+      <FolderTree
+        env={env}
+        ignoredSessions={ignoredSessions}
+        onSelectFolder={handleSelectFolder}
+        onToggleIgnored={handleToggleIgnored}
+      />
     </div>
   )
 }

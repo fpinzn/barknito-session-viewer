@@ -1,11 +1,19 @@
 import { useCallback, useMemo, useState } from 'react'
 import { gcsList, BUCKETS } from './gcsApi'
-import { SessionThumbnail } from './SessionThumbnail'
+import { SessionCard } from './SessionCard'
+import {
+  createIgnoredSessionPathSet,
+  partitionDateSessionEntries,
+  partitionSessionPaths,
+  type IgnoredSessionRow,
+} from './ignoredSessionsModel'
 import { useUIStore } from '../../stores/uiStore'
 
 interface FolderTreeProps {
   env: string
+  ignoredSessions: IgnoredSessionRow[]
   onSelectFolder: (folder: string) => void
+  onToggleIgnored: (sessionPath: string, ignored: boolean) => Promise<void>
 }
 
 interface DeviceNode {
@@ -51,7 +59,7 @@ function formatDateHeader(dateStr: string): string {
   return d.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-export function FolderTree({ env, onSelectFolder }: FolderTreeProps) {
+export function FolderTree({ env, ignoredSessions, onSelectFolder, onToggleIgnored }: FolderTreeProps) {
   const [devices, setDevices] = useState<DeviceNode[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,6 +68,10 @@ export function FolderTree({ env, onSelectFolder }: FolderTreeProps) {
 
   const viewMode = useUIStore(s => s.browserViewMode)
   const setViewMode = useUIStore(s => s.setBrowserViewMode)
+  const ignoredSessionPaths = useMemo(
+    () => createIgnoredSessionPathSet(ignoredSessions),
+    [ignoredSessions],
+  )
 
   const loadDevices = useCallback(async () => {
     setLoading(true)
@@ -178,16 +190,32 @@ export function FolderTree({ env, onSelectFolder }: FolderTreeProps) {
     return entries
   }, [devices, viewMode])
 
-  const sessionsByDate = useMemo(() => {
-    const groups = new Map<string, typeof allSessions>()
-    for (const entry of allSessions) {
+  const partitionedDateSessions = useMemo(
+    () => partitionDateSessionEntries(allSessions, ignoredSessionPaths),
+    [allSessions, ignoredSessionPaths],
+  )
+
+  const activeSessionsByDate = useMemo(() => {
+    const groups = new Map<string, typeof partitionedDateSessions.active>()
+    for (const entry of partitionedDateSessions.active) {
       const date = sessionDatePart(entry.path)
       const arr = groups.get(date) || []
       arr.push(entry)
       groups.set(date, arr)
     }
     return Array.from(groups.entries())
-  }, [allSessions])
+  }, [partitionedDateSessions.active])
+
+  const ignoredSessionsByDate = useMemo(() => {
+    const groups = new Map<string, typeof partitionedDateSessions.ignored>()
+    for (const entry of partitionedDateSessions.ignored) {
+      const date = sessionDatePart(entry.path)
+      const arr = groups.get(date) || []
+      arr.push(entry)
+      groups.set(date, arr)
+    }
+    return Array.from(groups.entries())
+  }, [partitionedDateSessions.ignored])
 
   // Trigger fetch when switching to date view
   if (viewMode === 'date' && loaded && !dateLoading && devices.some(d => d.sessions === null)) {
@@ -243,31 +271,52 @@ export function FolderTree({ env, onSelectFolder }: FolderTreeProps) {
               {device.sessions && device.sessions.length === 0 && (
                 <div className="session-row empty">No sessions</div>
               )}
-              {device.sessions && device.sessions.length > 0 && (
-                <div className="session-grid">
-                  {device.sessions.map(sessionPath => {
-                    const href = `?env=${encodeURIComponent(env)}&folder=${encodeURIComponent(sessionPath)}`
-                    return (
-                      <a
-                        key={sessionPath}
-                        className="session-card"
-                        href={href}
-                        onClick={(e) => {
-                          if (e.button !== 0 || e.metaKey || e.ctrlKey) return
-                          e.preventDefault()
-                          e.stopPropagation()
-                          onSelectFolder(sessionPath)
-                        }}
-                      >
-                        <SessionThumbnail env={env} sessionPath={sessionPath} />
-                        <div className="session-card-label">
-                          {formatSessionTimestamp(sessionPath)}
+              {device.sessions && device.sessions.length > 0 && (() => {
+                const partitioned = partitionSessionPaths(device.sessions, ignoredSessionPaths)
+
+                return (
+                  <>
+                    {partitioned.active.length > 0 && (
+                      <div className="session-section">
+                        <div className="session-section-header">Active</div>
+                        <div className="session-grid">
+                          {partitioned.active.map((sessionPath) => (
+                            <SessionCard
+                              key={sessionPath}
+                              env={env}
+                              sessionPath={sessionPath}
+                              primaryLabel={formatSessionTimestamp(sessionPath)}
+                              secondaryLabel={null}
+                              ignored={false}
+                              onSelectSession={onSelectFolder}
+                              onToggleIgnored={onToggleIgnored}
+                            />
+                          ))}
                         </div>
-                      </a>
-                    )
-                  })}
-                </div>
-              )}
+                      </div>
+                    )}
+                    {partitioned.ignored.length > 0 && (
+                      <div className="session-section ignored">
+                        <div className="session-section-header">Ignored</div>
+                        <div className="session-grid">
+                          {partitioned.ignored.map((sessionPath) => (
+                            <SessionCard
+                              key={sessionPath}
+                              env={env}
+                              sessionPath={sessionPath}
+                              primaryLabel={formatSessionTimestamp(sessionPath)}
+                              secondaryLabel={null}
+                              ignored={true}
+                              onSelectSession={onSelectFolder}
+                              onToggleIgnored={onToggleIgnored}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
             </div>
           )}
         </div>
@@ -281,35 +330,55 @@ export function FolderTree({ env, onSelectFolder }: FolderTreeProps) {
         <div className="folder-tree-status">No sessions found.</div>
       )}
 
-      {viewMode === 'date' && !dateLoading && sessionsByDate.map(([date, entries]) => (
-        <div key={date} className="date-group">
-          <div className="date-header">{formatDateHeader(date)}</div>
-          <div className="session-grid">
-            {entries.map(entry => {
-              const href = `?env=${encodeURIComponent(env)}&folder=${encodeURIComponent(entry.path)}`
-              return (
-                <a
-                  key={entry.path}
-                  className="session-card"
-                  href={href}
-                  onClick={(e) => {
-                    if (e.button !== 0 || e.metaKey || e.ctrlKey) return
-                    e.preventDefault()
-                    e.stopPropagation()
-                    onSelectFolder(entry.path)
-                  }}
-                >
-                  <SessionThumbnail env={env} sessionPath={entry.path} />
-                  <div className="session-card-label">
-                    <span className="session-card-time">{sessionTimePart(entry.path)}</span>
-                    <span className="session-card-device">{entry.device}</span>
-                  </div>
-                </a>
-              )
-            })}
-          </div>
+      {viewMode === 'date' && !dateLoading && activeSessionsByDate.length > 0 && (
+        <div className="session-section">
+          <div className="session-section-header">Active Sessions</div>
+          {activeSessionsByDate.map(([date, entries]) => (
+            <div key={date} className="date-group">
+              <div className="date-header">{formatDateHeader(date)}</div>
+              <div className="session-grid">
+                {entries.map((entry) => (
+                  <SessionCard
+                    key={entry.path}
+                    env={env}
+                    sessionPath={entry.path}
+                    primaryLabel={sessionTimePart(entry.path)}
+                    secondaryLabel={entry.device}
+                    ignored={false}
+                    onSelectSession={onSelectFolder}
+                    onToggleIgnored={onToggleIgnored}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
+
+      {viewMode === 'date' && !dateLoading && ignoredSessionsByDate.length > 0 && (
+        <div className="session-section ignored">
+          <div className="session-section-header">Ignored Sessions</div>
+          {ignoredSessionsByDate.map(([date, entries]) => (
+            <div key={date} className="date-group">
+              <div className="date-header">{formatDateHeader(date)}</div>
+              <div className="session-grid">
+                {entries.map((entry) => (
+                  <SessionCard
+                    key={entry.path}
+                    env={env}
+                    sessionPath={entry.path}
+                    primaryLabel={sessionTimePart(entry.path)}
+                    secondaryLabel={entry.device}
+                    ignored={true}
+                    onSelectSession={onSelectFolder}
+                    onToggleIgnored={onToggleIgnored}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

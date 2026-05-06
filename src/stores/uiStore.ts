@@ -44,7 +44,7 @@ const initialState = {
   skelMsOffset: 0,
   followCam: true,
   activePanel: 'gcs' as const,
-  browserViewMode: 'device' as const,
+  browserViewMode: 'date' as const,
 }
 
 export const useUIStore = create<UIState>((set) => ({

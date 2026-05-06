@@ -694,6 +694,23 @@ body {
   padding: 8px 12px 12px;
 }
 
+.session-section {
+  margin-bottom: 12px;
+}
+
+.session-section.ignored {
+  opacity: 0.72;
+}
+
+.session-section-header {
+  padding: 8px 12px 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+
 .session-list.open .session-grid {
   padding-left: 0;
   padding-right: 0;
@@ -707,15 +724,47 @@ body {
   border-radius: 6px;
   overflow: hidden;
   cursor: pointer;
-  text-decoration: none;
   color: #bbb;
   transition: border-color 0.15s, background 0.15s;
+  position: relative;
 }
 
 .session-card:hover {
   border-color: #555;
   background: #222;
   color: #eee;
+}
+
+.session-card.ignored {
+  border-color: #333;
+  background: #181818;
+}
+
+.session-card-ignore-toggle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(17, 17, 17, 0.82);
+  border: 1px solid #444;
+  border-radius: 999px;
+  z-index: 1;
+  cursor: pointer;
+}
+
+.session-card-ignore-toggle:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.session-card-ignore-toggle input {
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
 }
 
 .session-thumb {

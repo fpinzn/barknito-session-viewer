@@ -1,5 +1,5 @@
 const OAUTH_CLIENT_ID = '582116162882-crq4u850jgudhakqifjtscf893934dab.apps.googleusercontent.com'
-const SCOPE = 'https://www.googleapis.com/auth/devstorage.read_only'
+const SCOPE = 'openid email https://www.googleapis.com/auth/devstorage.read_only'
 
 let gcsToken: string | null = null
 let refreshTimer: ReturnType<typeof setTimeout> | null = null
@@ -36,6 +36,14 @@ export function clearToken() {
 
 export function getToken(): string | null {
   return gcsToken
+}
+
+export function getAuthorizationHeader(): string {
+  if (!gcsToken) {
+    throw new Error('Not authenticated')
+  }
+
+  return `Bearer ${gcsToken}`
 }
 
 /** Schedule a silent token refresh 5 minutes before expiry. */
