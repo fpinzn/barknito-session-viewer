@@ -1,6 +1,12 @@
 import { clearToken, getAuthorizationHeader, trySilentRefresh } from './auth'
 import { parseSessionIdentity, type IgnoredSessionRow } from './ignoredSessionsModel'
 
+const IGNORED_SESSIONS_API_BASE_URL = import.meta.env.VITE_IGNORED_SESSIONS_API_BASE_URL.replace(/\/$/, '')
+
+function ignoredSessionsUrl(path: string): string {
+  return `${IGNORED_SESSIONS_API_BASE_URL}${path}`
+}
+
 async function ignoredSessionsRequest(
   input: RequestInfo | URL,
   init: RequestInit,
@@ -13,7 +19,7 @@ async function ignoredSessionsRequest(
     },
   })
 
-  if (response.status !== 401 && response.status !== 403) {
+  if (response.status !== 401) {
     return response
   }
 
@@ -34,7 +40,7 @@ async function ignoredSessionsRequest(
 
 export async function listIgnoredSessions(environment: string): Promise<IgnoredSessionRow[]> {
   const response = await ignoredSessionsRequest(
-    `/api/ignored-sessions?env=${encodeURIComponent(environment)}`,
+    ignoredSessionsUrl(`/api/ignored-sessions?env=${encodeURIComponent(environment)}`),
     {
       method: 'GET',
     },
@@ -53,7 +59,7 @@ export async function setIgnoredSession(
   ignored: boolean,
 ): Promise<void> {
   const identity = parseSessionIdentity(sessionPath)
-  const response = await ignoredSessionsRequest('/api/ignored-sessions', {
+  const response = await ignoredSessionsRequest(ignoredSessionsUrl('/api/ignored-sessions'), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -71,4 +77,3 @@ export async function setIgnoredSession(
     throw new Error(`Ignored sessions error ${response.status}: ${await response.text()}`)
   }
 }
-

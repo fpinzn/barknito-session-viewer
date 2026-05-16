@@ -657,10 +657,16 @@ body {
   cursor: default;
 }
 
+.browser-toggle-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 .view-mode-toggle {
   display: flex;
   gap: 0;
-  margin-bottom: 8px;
+  flex: 1;
 }
 
 .view-mode-toggle button {

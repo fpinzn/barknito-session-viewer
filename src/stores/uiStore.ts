@@ -14,6 +14,7 @@ interface UIState {
   followCam: boolean
   activePanel: 'none' | 'gcs' | 'export' | 'events' | 'files'
   browserViewMode: 'device' | 'date'
+  browserSessionVisibility: 'active' | 'hidden'
 
   setShow3DSkeleton: (v: boolean) => void
   setShow2DSkeleton: (v: boolean) => void
@@ -28,6 +29,7 @@ interface UIState {
   setFollowCam: (v: boolean) => void
   setActivePanel: (v: 'none' | 'gcs' | 'export' | 'events' | 'files') => void
   setBrowserViewMode: (v: 'device' | 'date') => void
+  setBrowserSessionVisibility: (v: 'active' | 'hidden') => void
   reset: () => void
 }
 
@@ -45,6 +47,7 @@ const initialState = {
   followCam: true,
   activePanel: 'gcs' as const,
   browserViewMode: 'date' as const,
+  browserSessionVisibility: 'active' as const,
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -63,5 +66,6 @@ export const useUIStore = create<UIState>((set) => ({
   setFollowCam: (v) => set({ followCam: v }),
   setActivePanel: (v) => set({ activePanel: v }),
   setBrowserViewMode: (v) => set({ browserViewMode: v }),
+  setBrowserSessionVisibility: (v) => set({ browserSessionVisibility: v }),
   reset: () => set(initialState),
 }))

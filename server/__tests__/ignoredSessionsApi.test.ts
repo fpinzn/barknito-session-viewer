@@ -89,4 +89,41 @@ describe('ignored sessions API', () => {
     expect(response.status).toBe(403)
     expect(response.body).toEqual({ error: 'Forbidden' })
   })
+
+  it('returns JSON when ignored session loading fails', async () => {
+    const app = createApp({
+      listIgnoredSessions: vi.fn().mockRejectedValue(new Error('db busy')),
+      setIgnoredSession: vi.fn(),
+      clearIgnoredSession: vi.fn(),
+      authorizeAccessToken: vi.fn().mockResolvedValue({
+        email: 'user@example.com',
+      }),
+      staticDir: null,
+    })
+
+    const response = await request(app)
+      .get('/api/ignored-sessions?env=dev')
+      .set('Authorization', 'Bearer token')
+
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'db busy' })
+  })
+
+  it('allows CORS preflight from Pages origins', async () => {
+    const app = createApp({
+      listIgnoredSessions: vi.fn(),
+      setIgnoredSession: vi.fn(),
+      clearIgnoredSession: vi.fn(),
+      authorizeAccessToken: vi.fn(),
+      staticDir: null,
+    })
+
+    const response = await request(app)
+      .options('/api/ignored-sessions')
+      .set('Origin', 'https://7deeb3d9.session-viewer.pages.dev')
+
+    expect(response.status).toBe(204)
+    expect(response.headers['access-control-allow-origin']).toBe('https://7deeb3d9.session-viewer.pages.dev')
+    expect(response.headers['access-control-allow-methods']).toContain('PUT')
+  })
 })

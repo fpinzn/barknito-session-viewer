@@ -50,8 +50,14 @@ export function createIgnoredSessionsRouter(deps: IgnoredSessionsRouteDeps): Rou
       return
     }
 
-    const rows = await deps.listIgnoredSessions(environment)
-    response.status(200).json(rows)
+    try {
+      const rows = await deps.listIgnoredSessions(environment)
+      response.status(200).json(rows)
+    } catch (error) {
+      response.status(500).json({
+        error: error instanceof Error ? error.message : 'Failed to load ignored sessions',
+      })
+    }
   })
 
   router.put('/', async (request, response) => {
@@ -79,16 +85,23 @@ export function createIgnoredSessionsRouter(deps: IgnoredSessionsRouteDeps): Rou
         return
       }
 
-      if (body.ignored) {
-        await deps.setIgnoredSession({
-          environment,
-          deviceId,
-          sessionId,
-          sessionPath,
-          ignoredByEmail: authorizedUser.email,
+      try {
+        if (body.ignored) {
+          await deps.setIgnoredSession({
+            environment,
+            deviceId,
+            sessionId,
+            sessionPath,
+            ignoredByEmail: authorizedUser.email,
+          })
+        } else {
+          await deps.clearIgnoredSession(environment, deviceId, sessionId)
+        }
+      } catch (error) {
+        response.status(500).json({
+          error: error instanceof Error ? error.message : 'Failed to update ignored session',
         })
-      } else {
-        await deps.clearIgnoredSession(environment, deviceId, sessionId)
+        return
       }
 
       response.status(204).send()

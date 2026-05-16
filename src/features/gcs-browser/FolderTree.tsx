@@ -68,6 +68,8 @@ export function FolderTree({ env, ignoredSessions, onSelectFolder, onToggleIgnor
 
   const viewMode = useUIStore(s => s.browserViewMode)
   const setViewMode = useUIStore(s => s.setBrowserViewMode)
+  const sessionVisibility = useUIStore(s => s.browserSessionVisibility)
+  const setSessionVisibility = useUIStore(s => s.setBrowserSessionVisibility)
   const ignoredSessionPaths = useMemo(
     () => createIgnoredSessionPathSet(ignoredSessions),
     [ignoredSessions],
@@ -217,6 +219,10 @@ export function FolderTree({ env, ignoredSessions, onSelectFolder, onToggleIgnor
     return Array.from(groups.entries())
   }, [partitionedDateSessions.ignored])
 
+  const visibleSessionsByDate = sessionVisibility === 'active'
+    ? activeSessionsByDate
+    : ignoredSessionsByDate
+
   // Trigger fetch when switching to date view
   if (viewMode === 'date' && loaded && !dateLoading && devices.some(d => d.sessions === null)) {
     loadAllSessions()
@@ -236,19 +242,36 @@ export function FolderTree({ env, ignoredSessions, onSelectFolder, onToggleIgnor
 
   return (
     <div className="folder-tree">
-      <div className="view-mode-toggle">
-        <button
-          className={viewMode === 'device' ? 'active' : ''}
-          onClick={() => setViewMode('device')}
-        >
-          By Device
-        </button>
-        <button
-          className={viewMode === 'date' ? 'active' : ''}
-          onClick={() => setViewMode('date')}
-        >
-          By Date
-        </button>
+      <div className="browser-toggle-row">
+        <div className="view-mode-toggle">
+          <button
+            className={sessionVisibility === 'active' ? 'active' : ''}
+            onClick={() => setSessionVisibility('active')}
+          >
+            Active
+          </button>
+          <button
+            className={sessionVisibility === 'hidden' ? 'active' : ''}
+            onClick={() => setSessionVisibility('hidden')}
+          >
+            Hidden
+          </button>
+        </div>
+
+        <div className="view-mode-toggle">
+          <button
+            className={viewMode === 'device' ? 'active' : ''}
+            onClick={() => setViewMode('device')}
+          >
+            By Device
+          </button>
+          <button
+            className={viewMode === 'date' ? 'active' : ''}
+            onClick={() => setViewMode('date')}
+          >
+            By Date
+          </button>
+        </div>
       </div>
 
       {viewMode === 'device' && devices.map((device, idx) => (
@@ -273,48 +296,33 @@ export function FolderTree({ env, ignoredSessions, onSelectFolder, onToggleIgnor
               )}
               {device.sessions && device.sessions.length > 0 && (() => {
                 const partitioned = partitionSessionPaths(device.sessions, ignoredSessionPaths)
+                const visibleSessionPaths = sessionVisibility === 'active'
+                  ? partitioned.active
+                  : partitioned.ignored
+
+                if (visibleSessionPaths.length === 0) {
+                  return (
+                    <div className="session-row empty">
+                      {sessionVisibility === 'active' ? 'No active sessions' : 'No hidden sessions'}
+                    </div>
+                  )
+                }
 
                 return (
-                  <>
-                    {partitioned.active.length > 0 && (
-                      <div className="session-section">
-                        <div className="session-section-header">Active</div>
-                        <div className="session-grid">
-                          {partitioned.active.map((sessionPath) => (
-                            <SessionCard
-                              key={sessionPath}
-                              env={env}
-                              sessionPath={sessionPath}
-                              primaryLabel={formatSessionTimestamp(sessionPath)}
-                              secondaryLabel={null}
-                              ignored={false}
-                              onSelectSession={onSelectFolder}
-                              onToggleIgnored={onToggleIgnored}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {partitioned.ignored.length > 0 && (
-                      <div className="session-section ignored">
-                        <div className="session-section-header">Ignored</div>
-                        <div className="session-grid">
-                          {partitioned.ignored.map((sessionPath) => (
-                            <SessionCard
-                              key={sessionPath}
-                              env={env}
-                              sessionPath={sessionPath}
-                              primaryLabel={formatSessionTimestamp(sessionPath)}
-                              secondaryLabel={null}
-                              ignored={true}
-                              onSelectSession={onSelectFolder}
-                              onToggleIgnored={onToggleIgnored}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
+                  <div className="session-grid">
+                    {visibleSessionPaths.map((sessionPath) => (
+                      <SessionCard
+                        key={sessionPath}
+                        env={env}
+                        sessionPath={sessionPath}
+                        primaryLabel={formatSessionTimestamp(sessionPath)}
+                        secondaryLabel={null}
+                        ignored={sessionVisibility === 'hidden'}
+                        onSelectSession={onSelectFolder}
+                        onToggleIgnored={onToggleIgnored}
+                      />
+                    ))}
+                  </div>
                 )
               })()}
             </div>
@@ -330,35 +338,18 @@ export function FolderTree({ env, ignoredSessions, onSelectFolder, onToggleIgnor
         <div className="folder-tree-status">No sessions found.</div>
       )}
 
-      {viewMode === 'date' && !dateLoading && activeSessionsByDate.length > 0 && (
-        <div className="session-section">
-          <div className="session-section-header">Active Sessions</div>
-          {activeSessionsByDate.map(([date, entries]) => (
-            <div key={date} className="date-group">
-              <div className="date-header">{formatDateHeader(date)}</div>
-              <div className="session-grid">
-                {entries.map((entry) => (
-                  <SessionCard
-                    key={entry.path}
-                    env={env}
-                    sessionPath={entry.path}
-                    primaryLabel={sessionTimePart(entry.path)}
-                    secondaryLabel={entry.device}
-                    ignored={false}
-                    onSelectSession={onSelectFolder}
-                    onToggleIgnored={onToggleIgnored}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
+      {viewMode === 'date' && !dateLoading && allSessions.length > 0 && visibleSessionsByDate.length === 0 && (
+        <div className="folder-tree-status">
+          {sessionVisibility === 'active' ? 'No active sessions found.' : 'No hidden sessions found.'}
         </div>
       )}
 
-      {viewMode === 'date' && !dateLoading && ignoredSessionsByDate.length > 0 && (
-        <div className="session-section ignored">
-          <div className="session-section-header">Ignored Sessions</div>
-          {ignoredSessionsByDate.map(([date, entries]) => (
+      {viewMode === 'date' && !dateLoading && visibleSessionsByDate.length > 0 && (
+        <div className={`session-section${sessionVisibility === 'hidden' ? ' ignored' : ''}`}>
+          <div className="session-section-header">
+            {sessionVisibility === 'active' ? 'Active Sessions' : 'Hidden Sessions'}
+          </div>
+          {visibleSessionsByDate.map(([date, entries]) => (
             <div key={date} className="date-group">
               <div className="date-header">{formatDateHeader(date)}</div>
               <div className="session-grid">
@@ -369,7 +360,7 @@ export function FolderTree({ env, ignoredSessions, onSelectFolder, onToggleIgnor
                     sessionPath={entry.path}
                     primaryLabel={sessionTimePart(entry.path)}
                     secondaryLabel={entry.device}
-                    ignored={true}
+                    ignored={sessionVisibility === 'hidden'}
                     onSelectSession={onSelectFolder}
                     onToggleIgnored={onToggleIgnored}
                   />
