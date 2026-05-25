@@ -95,3 +95,7 @@ Without this, `Sign in with Google` will fail in production even if the site its
 ## Notes
 
 - The current production build succeeds, but the main JS bundle is large enough for Vite to warn about chunk size during build.
+
+## Operational Guides
+
+- [Label Studio project setup](docs/label-studio-project-setup.md)
