@@ -4,21 +4,32 @@ import type { Frame } from './frame-utils'
 export function computeVideoStartOffsetSec(
   sessionMeta: SessionMeta | null,
   mediaDurationSec: number,
+  sessionTimelineLastMs: number | null,
 ): number {
+  if (!isFinite(mediaDurationSec) || mediaDurationSec <= 0) return 0
+
+  if (typeof sessionTimelineLastMs === 'number' && isFinite(sessionTimelineLastMs) && sessionTimelineLastMs > 0) {
+    return Math.max(0, (sessionTimelineLastMs / 1000) - mediaDurationSec)
+  }
+
   const startedAtMs = sessionMeta?.startedAtMs
   const endedAtMs = sessionMeta?.endedAtMs
   if (typeof startedAtMs !== 'number' || typeof endedAtMs !== 'number') return 0
-  if (!isFinite(mediaDurationSec) || mediaDurationSec <= 0) return 0
 
-  const sessionDurationSec = Math.max(0, (endedAtMs - startedAtMs) / 1000)
-  return Math.max(0, sessionDurationSec - mediaDurationSec)
+  return Math.max(0, ((endedAtMs - startedAtMs) / 1000) - mediaDurationSec)
 }
 
 export function computeVideoStartOffsetMs(
   sessionMeta: SessionMeta | null,
   mediaDurationSec: number,
+  sessionTimelineLastMs: number | null,
 ): number {
-  return Math.round(computeVideoStartOffsetSec(sessionMeta, mediaDurationSec) * 1000)
+  return Math.round(computeVideoStartOffsetSec(sessionMeta, mediaDurationSec, sessionTimelineLastMs) * 1000)
+}
+
+export function sessionTimelineLastMsForFrames(frames: Frame[]): number | null {
+  if (frames.length === 0) return null
+  return frames[frames.length - 1].ts
 }
 
 export function mediaTimeForSession(
@@ -47,15 +58,15 @@ export function findNearestFrameIdx(frames: Frame[], targetTs: number): number {
 
 export function visibleTimeForFrameMs(frames: Frame[], frameIdx: number, videoStartOffsetMs: number): number {
   if (frames.length === 0 || frameIdx >= frames.length) return 0
-  return Math.max(0, (frames[frameIdx].ts - frames[0].ts) - videoStartOffsetMs)
+  return Math.max(0, frames[frameIdx].ts - videoStartOffsetMs)
 }
 
 export function sessionTimeForVisibleTimeMs(frames: Frame[], visibleTimeMs: number, videoStartOffsetMs: number): number {
   if (frames.length === 0) return 0
-  return frames[0].ts + videoStartOffsetMs + Math.max(0, visibleTimeMs)
+  return videoStartOffsetMs + Math.max(0, visibleTimeMs)
 }
 
 export function visibleTimeForSessionTimeMs(frames: Frame[], sessionTimeMs: number, videoStartOffsetMs: number): number {
   if (frames.length === 0) return 0
-  return Math.max(0, sessionTimeMs - frames[0].ts - videoStartOffsetMs)
+  return Math.max(0, sessionTimeMs - videoStartOffsetMs)
 }

@@ -58,7 +58,7 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
     if (lo > 0 && Math.abs(frames[lo - 1].ts - timestampMs) < Math.abs(frames[lo].ts - timestampMs)) {
       lo--
     }
-    const visibleTimeMs = Math.max(0, timestampMs - frames[0].ts - videoStartOffsetMs)
+    const visibleTimeMs = Math.max(0, timestampMs - videoStartOffsetMs)
     set({ currentFrameIdx: lo, currentSessionTimeMs: timestampMs, currentVisibleTimeMs: visibleTimeMs })
   },
 

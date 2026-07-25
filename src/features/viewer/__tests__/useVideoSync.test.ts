@@ -6,6 +6,7 @@ describe('computeVideoStartOffsetSec', () => {
     const offsetSec = computeVideoStartOffsetSec(
       { startedAtMs: 1000, endedAtMs: 26000 },
       10,
+      null,
     )
 
     expect(offsetSec).toBe(15)
@@ -15,6 +16,7 @@ describe('computeVideoStartOffsetSec', () => {
     const offsetSec = computeVideoStartOffsetSec(
       { startedAtMs: 1000 },
       10,
+      null,
     )
 
     expect(offsetSec).toBe(0)
@@ -24,6 +26,7 @@ describe('computeVideoStartOffsetSec', () => {
     const offsetSec = computeVideoStartOffsetSec(
       { startedAtMs: 1000, endedAtMs: 5000 },
       10,
+      null,
     )
 
     expect(offsetSec).toBe(0)

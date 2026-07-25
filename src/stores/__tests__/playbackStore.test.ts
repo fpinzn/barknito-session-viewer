@@ -90,6 +90,20 @@ describe('playbackStore', () => {
     expect(idx).toBeLessThanOrEqual(2)
   })
 
+  it('seekTo stores visible time on the absolute session timeline', () => {
+    const sensorFrameMap = new Map([
+      [1, { ts: 16120, pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 } }],
+      [2, { ts: 16143, pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 } }],
+      [3, { ts: 20000, pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 } }],
+    ])
+    useSessionStore.getState().loadSensorData(sensorFrameMap)
+    useSessionStore.getState().setVideoStartOffsetMs(16110)
+
+    usePlaybackStore.getState().seekTo(20000)
+
+    expect(usePlaybackStore.getState().currentVisibleTimeMs).toBe(3890)
+  })
+
   it('jumpToEvent seeks to event timestamp', () => {
     const sensorFrameMap = new Map([
       [1, { ts: 100, pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 } }],

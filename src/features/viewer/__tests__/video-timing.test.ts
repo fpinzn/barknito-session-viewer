@@ -12,32 +12,43 @@ describe('video timing helpers', () => {
     const offsetMs = computeVideoStartOffsetMs(
       { startedAtMs: 1000, endedAtMs: 26000 },
       10,
+      null,
     )
 
     expect(offsetMs).toBe(15000)
   })
 
+  it('prefers the recorded timeline duration over session metadata duration', () => {
+    const offsetMs = computeVideoStartOffsetMs(
+      { startedAtMs: 1000, endedAtMs: 61731 },
+      60.342,
+      76419,
+    )
+
+    expect(offsetMs).toBe(16077)
+  })
+
   it('maps visible time to session time using the video offset', () => {
     const frames: Frame[] = [
-      { id: 1, ts: 1000, sensor: null },
-      { id: 2, ts: 16000, sensor: null },
+      { id: 1, ts: 16120, sensor: null },
+      { id: 2, ts: 16143, sensor: null },
       { id: 3, ts: 20000, sensor: null },
     ]
 
-    expect(sessionTimeForVisibleTimeMs(frames, 0, 15000)).toBe(16000)
-    expect(sessionTimeForVisibleTimeMs(frames, 4000, 15000)).toBe(20000)
+    expect(sessionTimeForVisibleTimeMs(frames, 0, 16110)).toBe(16110)
+    expect(sessionTimeForVisibleTimeMs(frames, 4000, 16110)).toBe(20110)
   })
 
   it('maps a session frame back to visible time', () => {
     const frames: Frame[] = [
-      { id: 1, ts: 1000, sensor: null },
-      { id: 2, ts: 16000, sensor: null },
+      { id: 1, ts: 16120, sensor: null },
+      { id: 2, ts: 16143, sensor: null },
       { id: 3, ts: 20000, sensor: null },
     ]
 
-    expect(visibleTimeForFrameMs(frames, 0, 15000)).toBe(0)
-    expect(visibleTimeForFrameMs(frames, 1, 15000)).toBe(0)
-    expect(visibleTimeForFrameMs(frames, 2, 15000)).toBe(4000)
+    expect(visibleTimeForFrameMs(frames, 0, 16110)).toBe(10)
+    expect(visibleTimeForFrameMs(frames, 1, 16110)).toBe(33)
+    expect(visibleTimeForFrameMs(frames, 2, 16110)).toBe(3890)
   })
 
   it('finds the frame nearest to the offset-adjusted session time', () => {

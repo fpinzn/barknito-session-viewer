@@ -1,9 +1,12 @@
 import { clearToken, getAuthorizationHeader, trySilentRefresh } from './auth'
 import { parseSessionIdentity, type IgnoredSessionRow } from './ignoredSessionsModel'
 
-const IGNORED_SESSIONS_API_BASE_URL = import.meta.env.VITE_IGNORED_SESSIONS_API_BASE_URL.replace(/\/$/, '')
+const IGNORED_SESSIONS_API_BASE_URL = import.meta.env.VITE_IGNORED_SESSIONS_API_BASE_URL?.replace(/\/$/, '') ?? ''
 
 function ignoredSessionsUrl(path: string): string {
+  if (!IGNORED_SESSIONS_API_BASE_URL) {
+    throw new Error('Ignored sessions API base URL is not configured')
+  }
   return `${IGNORED_SESSIONS_API_BASE_URL}${path}`
 }
 
@@ -39,6 +42,8 @@ async function ignoredSessionsRequest(
 }
 
 export async function listIgnoredSessions(environment: string): Promise<IgnoredSessionRow[]> {
+  if (!IGNORED_SESSIONS_API_BASE_URL) return []
+
   const response = await ignoredSessionsRequest(
     ignoredSessionsUrl(`/api/ignored-sessions?env=${encodeURIComponent(environment)}`),
     {

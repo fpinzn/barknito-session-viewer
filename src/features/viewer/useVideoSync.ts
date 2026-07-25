@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback } from 'react'
 import { useSessionStore } from '../../stores/sessionStore'
 import { usePlaybackStore } from '../../stores/playbackStore'
 import { depthFrameRef, rgbFrameRef } from '../../three/environment/PointCloud'
-import { computeVideoStartOffsetMs, computeVideoStartOffsetSec, mediaTimeForSession } from './video-timing'
+import { computeVideoStartOffsetMs, mediaTimeForSession, sessionTimelineLastMsForFrames } from './video-timing'
 
 const DRIFT_THRESHOLD_MS = 150
 const AUDIO_VOLUME = 0.5
@@ -35,6 +35,7 @@ export function useVideoSync() {
   const depthVideoUrl = useSessionStore(s => s.depthVideoUrl)
   const audioUrl = useSessionStore(s => s.audioUrl)
   const sessionMeta = useSessionStore(s => s.sessionMeta)
+  const frames = useSessionStore(s => s.frames)
   const setVideoStartOffsetMs = useSessionStore(s => s.setVideoStartOffsetMs)
   const setVideoDurationMs = useSessionStore(s => s.setVideoDurationMs)
 
@@ -107,13 +108,14 @@ export function useVideoSync() {
     el.addEventListener('loadedmetadata', () => {
       canvas.width = el.videoWidth
       canvas.height = el.videoHeight
-      const offsetMs = computeVideoStartOffsetMs(sessionMeta, el.duration)
+      const timelineLastMs = sessionTimelineLastMsForFrames(useSessionStore.getState().frames)
+      const offsetMs = computeVideoStartOffsetMs(sessionMeta, el.duration, timelineLastMs)
       setVideoStartOffsetMs(offsetMs)
       setVideoDurationMs(Math.round(el.duration * 1000))
 
       const frames = useSessionStore.getState().frames
       if (frames.length > 0) {
-        const targetSessionTs = frames[0].ts + offsetMs
+        const targetSessionTs = offsetMs
         usePlaybackStore.getState().seekTo(targetSessionTs)
       }
     })
@@ -143,6 +145,16 @@ export function useVideoSync() {
       setVideoDurationMs(0)
     }
   }, [sessionMeta, setVideoDurationMs, setVideoStartOffsetMs, videoUrl])
+
+  useEffect(() => {
+    const el = rgbVideoRef.current
+    if (!el || !isFinite(el.duration) || el.duration <= 0) return
+
+    const timelineLastMs = sessionTimelineLastMsForFrames(frames)
+    const offsetMs = computeVideoStartOffsetMs(sessionMeta, el.duration, timelineLastMs)
+    setVideoStartOffsetMs(offsetMs)
+    setVideoDurationMs(Math.round(el.duration * 1000))
+  }, [frames, sessionMeta, setVideoDurationMs, setVideoStartOffsetMs])
 
   // Depth video
   useEffect(() => {
@@ -229,10 +241,10 @@ export function useVideoSync() {
    */
   const syncMedia = useCallback((sessionTimeMs: number, isPlaying: boolean, speed: number) => {
     const sessionTimeSec = Math.max(0, sessionTimeMs / 1000)
+    const videoStartOffsetSec = useSessionStore.getState().videoStartOffsetMs / 1000
 
     const syncEl = (el: HTMLMediaElement | null, canPlayWithoutGesture: boolean) => {
       if (!el) return
-      const videoStartOffsetSec = computeVideoStartOffsetSec(sessionMeta, el.duration)
       const isBeforeVisibleStart = sessionTimeSec < videoStartOffsetSec
 
       if (isBeforeVisibleStart) {
@@ -284,7 +296,7 @@ export function useVideoSync() {
       }
       syncEl(audio, false)
     }
-  }, [sessionMeta])
+  }, [])
 
   return { syncMedia }
 }

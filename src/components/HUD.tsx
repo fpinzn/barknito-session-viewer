@@ -40,6 +40,7 @@ export function HUD() {
   return (
     <div className="hud">
       <div>Frame: <span className="val">{frameIdx + 1} / {frames.length}</span></div>
+      <div>Frame ID: <span className="val">{frame.id}</span></div>
       <div>Frame Session Time: <span className="val">{(frame.ts / 1000).toFixed(2)}s</span></div>
       <div>Playhead Session Time: <span className="val">{(currentSessionTimeMs / 1000).toFixed(2)}s</span></div>
       <div>Visible Time: <span className="val">{(currentVisibleTimeMs / 1000).toFixed(2)}s</span></div>
