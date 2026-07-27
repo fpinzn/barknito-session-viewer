@@ -10,7 +10,7 @@ describe('ControlsBar', () => {
     useSessionStore.getState().reset()
   })
 
-  it('shows visible and session milliseconds in the timeline label', () => {
+  it('shows a compact frame and millisecond timeline label', () => {
     const sensorFrameMap = new Map([
       [1, { ts: 16120, pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 } }],
       [2, { ts: 20000, pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 } }],
@@ -22,6 +22,6 @@ describe('ControlsBar', () => {
 
     render(<ControlsBar />)
 
-    expect(screen.getByText('2 / 2 · visible 3890 ms · session 20000 ms')).toBeInTheDocument()
+    expect(screen.getByText('2 / 2 · 3890 ms')).toBeInTheDocument()
   })
 })

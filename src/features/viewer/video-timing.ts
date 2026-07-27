@@ -36,9 +36,11 @@ export function mediaTimeForSession(
   el: Pick<HTMLMediaElement, 'duration' | 'seekable'>,
   sessionTimeSec: number,
   videoStartOffsetSec: number,
+  mediaTimelineStartSec: number,
 ): number {
-  const base = el.seekable.length > 0 ? el.seekable.start(0) : 0
-  const max = isFinite(el.duration) ? el.duration : Infinity
+  const seekableBase = el.seekable.length > 0 ? el.seekable.start(0) : 0
+  const base = Math.max(seekableBase, mediaTimelineStartSec)
+  const max = isFinite(el.duration) ? base + el.duration : Infinity
   return Math.min(base + Math.max(0, sessionTimeSec - videoStartOffsetSec), max)
 }
 

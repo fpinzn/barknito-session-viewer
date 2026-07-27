@@ -43,7 +43,7 @@ describe('mediaTimeForSession', () => {
       },
     } as HTMLMediaElement
 
-    const targetSec = mediaTimeForSession(mediaEl, 5, 12)
+    const targetSec = mediaTimeForSession(mediaEl, 5, 12, 12)
 
     expect(targetSec).toBe(12)
   })
@@ -57,9 +57,23 @@ describe('mediaTimeForSession', () => {
       },
     } as HTMLMediaElement
 
-    const targetSec = mediaTimeForSession(mediaEl, 15, 12)
+    const targetSec = mediaTimeForSession(mediaEl, 15, 12, 12)
 
     expect(targetSec).toBe(15)
+  })
+
+  it('seeks on the media PTS timeline when the video starts at a nonzero timestamp', () => {
+    const mediaEl = {
+      duration: 60.342,
+      seekable: {
+        length: 1,
+        start: () => 0,
+      },
+    } as HTMLMediaElement
+
+    const targetSec = mediaTimeForSession(mediaEl, 70.35, 16.077, 16.11)
+
+    expect(targetSec).toBeCloseTo(70.383, 3)
   })
 
 })

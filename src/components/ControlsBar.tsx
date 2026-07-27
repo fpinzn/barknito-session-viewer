@@ -132,7 +132,7 @@ export function ControlsBar() {
           )
         })}
         <span className="progress-label">
-          {`${frameIdx + 1} / ${totalFrames} · visible ${Math.round(currentVisibleTimeMs)} ms · session ${Math.round(currentSessionTimeMs)} ms`}
+          {`${frameIdx + 1} / ${totalFrames} · ${Math.round(currentVisibleTimeMs)} ms`}
         </span>
       </div>
 
