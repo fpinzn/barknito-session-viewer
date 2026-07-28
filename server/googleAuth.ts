@@ -14,11 +14,17 @@ export async function authorizeAccessToken(token: string, environment: string): 
     throw new Error(`Unknown environment: ${environment}`)
   }
 
-  const bucketResponse = await fetch(`https://storage.googleapis.com/storage/v1/b/${bucket}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
+  // Authorize with objects.list — the permission the viewer actually uses. Reading
+  // bucket metadata needs storage.buckets.get, which roles/storage.objectViewer
+  // does not grant, so checking it locks out legitimate viewers.
+  const bucketResponse = await fetch(
+    `https://storage.googleapis.com/storage/v1/b/${bucket}/o?maxResults=1`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     },
-  })
+  )
 
   if (!bucketResponse.ok) {
     throw new Error(`Bucket access denied for environment ${environment}`)
