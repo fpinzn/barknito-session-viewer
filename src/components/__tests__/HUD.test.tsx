@@ -22,4 +22,31 @@ describe('HUD', () => {
 
     expect(screen.getByText('4936')).toBeInTheDocument()
   })
+
+  it('badges a session that relies on the legacy coordinate convention', () => {
+    const sensorFrameMap = new Map([
+      [1, { ts: 0, pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 } }],
+    ])
+    useSessionStore.getState().loadSensorData(sensorFrameMap)
+    useSessionStore.setState({ sessionMeta: { sessionId: '20260520-154443-fca8' } })
+
+    render(<HUD />)
+
+    expect(screen.getByText(/legacy coords/i)).toBeInTheDocument()
+  })
+
+  it('does not badge a session that declares display-space coordinates', () => {
+    const sensorFrameMap = new Map([
+      [1, { ts: 0, pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 } }],
+    ])
+    useSessionStore.getState().loadSensorData(sensorFrameMap)
+    useSessionStore.setState({
+      sessionMeta: { sessionId: 'future', landmarkSpace: 'display_top_left' },
+    })
+
+    render(<HUD />)
+
+    expect(screen.queryByText(/legacy coords/i)).not.toBeInTheDocument()
+  })
 })
+
