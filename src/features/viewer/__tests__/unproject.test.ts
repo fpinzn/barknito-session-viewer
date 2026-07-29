@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { unproject } from '../unproject'
+import { DISPLAY_TOP_LEFT, landmarkSpaceFromMeta, unproject, VISION_NATIVE } from '../unproject'
 import type { Intrinsics, SensorFrame } from '../../../types'
 
 describe('unproject', () => {
@@ -45,5 +45,45 @@ describe('unproject', () => {
     expect(p.x).toBeCloseTo(10, 0)
     expect(p.y).toBeCloseTo(20, 0)
     expect(p.z).toBeCloseTo(31, 0)
+  })
+})
+
+describe('landmarkSpaceFromMeta', () => {
+  it('defaults to the vision-native convention when nothing is declared', () => {
+    expect(landmarkSpaceFromMeta({ sessionId: '20260520-154443-fca8' })).toBe(VISION_NATIVE)
+  })
+
+  it('honours an explicit declaration', () => {
+    expect(landmarkSpaceFromMeta({ landmarkSpace: 'display_top_left' })).toBe(DISPLAY_TOP_LEFT)
+  })
+
+  it('defaults to vision-native for a null meta', () => {
+    expect(landmarkSpaceFromMeta(null)).toBe(VISION_NATIVE)
+  })
+
+  it('falls back to vision-native for an unrecognised declaration', () => {
+    expect(landmarkSpaceFromMeta({ landmarkSpace: 'sideways' })).toBe(VISION_NATIVE)
+  })
+})
+
+describe('unproject landmark space', () => {
+  const intrinsics: Intrinsics = { fx: 500, fy: 500, cx: 360, cy: 480, resW: 720, resH: 960 }
+  const identity: Pick<SensorFrame, 'pos' | 'rot'> = {
+    pos: { x: 0, y: 0, z: 0 },
+    rot: { x: 0, y: 0, z: 0, w: 1 },
+  }
+
+  it('defaults to the vision-native path when no space is passed', () => {
+    const implicit = unproject(0.25, 0.75, 1.0, identity, intrinsics)
+    const explicit = unproject(0.25, 0.75, 1.0, identity, intrinsics, VISION_NATIVE)
+
+    expect(implicit).toEqual(explicit)
+  })
+
+  it('treats display-space coordinates differently from vision-native ones', () => {
+    const native = unproject(0.25, 0.75, 1.0, identity, intrinsics, VISION_NATIVE)
+    const display = unproject(0.25, 0.75, 1.0, identity, intrinsics, DISPLAY_TOP_LEFT)
+
+    expect(display).not.toEqual(native)
   })
 })

@@ -50,6 +50,17 @@ export interface SessionMeta {
   sceneId?: string
   deviceId?: string
   sessionId?: string
+  /**
+   * Coordinate convention for pose landmarks. Absent means a build predating the
+   * declaration, i.e. raw Vision output in the native landscape buffer with a
+   * bottom-left origin. See `ml/docs/session-bundle-contract.md`.
+   */
+  landmarkSpace?: string
+  /**
+   * The video's first frame PTS in milliseconds. Also encoded in the MP4 as an `elst`
+   * empty edit, but decoders rebase that away, so the recorder writes it explicitly.
+   */
+  videoStartPtsMs?: number
   [key: string]: unknown
 }
 
