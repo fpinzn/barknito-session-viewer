@@ -8,6 +8,14 @@ export function computeVideoStartOffsetSec(
 ): number {
   if (!isFinite(mediaDurationSec) || mediaDurationSec <= 0) return 0
 
+  // The recorder writes the video's true first PTS when it knows it. Prefer that over
+  // end-aligning, which assumes no trailing gap — measured error on the project-4
+  // batch is 132 ms on one session and 5965 ms on another.
+  const recordedStartPtsMs = sessionMeta?.videoStartPtsMs
+  if (typeof recordedStartPtsMs === 'number' && isFinite(recordedStartPtsMs) && recordedStartPtsMs >= 0) {
+    return recordedStartPtsMs / 1000
+  }
+
   if (typeof sessionTimelineLastMs === 'number' && isFinite(sessionTimelineLastMs) && sessionTimelineLastMs > 0) {
     return Math.max(0, (sessionTimelineLastMs / 1000) - mediaDurationSec)
   }

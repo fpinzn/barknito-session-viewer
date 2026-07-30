@@ -18,6 +18,26 @@ describe('video timing helpers', () => {
     expect(offsetMs).toBe(15000)
   })
 
+  it('prefers a recorded video start PTS over the end-alignment estimate', () => {
+    const offsetMs = computeVideoStartOffsetMs(
+      { startedAtMs: 1000, endedAtMs: 61731, videoStartPtsMs: 162998 },
+      255.035,
+      417901,
+    )
+
+    expect(offsetMs).toBe(162998)
+  })
+
+  it('falls back to end alignment when no start PTS is recorded', () => {
+    const offsetMs = computeVideoStartOffsetMs(
+      { startedAtMs: 1000, endedAtMs: 61731 },
+      255.035,
+      417901,
+    )
+
+    expect(offsetMs).toBe(162866)
+  })
+
   it('prefers the recorded timeline duration over session metadata duration', () => {
     const offsetMs = computeVideoStartOffsetMs(
       { startedAtMs: 1000, endedAtMs: 61731 },

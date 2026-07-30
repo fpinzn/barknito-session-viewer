@@ -3,7 +3,7 @@ import { useSessionStore } from '../../stores/sessionStore'
 import { usePlaybackStore } from '../../stores/playbackStore'
 import { useUIStore } from '../../stores/uiStore'
 import { findNearestPoseModels } from '../../features/viewer/frame-utils'
-import { unproject } from '../../features/viewer/unproject'
+import { landmarkSpaceFromMeta, unproject } from '../../features/viewer/unproject'
 import { getSkeletonDef } from '../../constants'
 import type { Landmark } from '../../types'
 import { Joint } from './Joint'
@@ -24,6 +24,7 @@ export function Skeleton2D() {
   const frames = useSessionStore(s => s.frames)
   const poseEvents = useSessionStore(s => s.poseEvents)
   const intrinsics = useSessionStore(s => s.intrinsics)
+  const sessionMeta = useSessionStore(s => s.sessionMeta)
 
   const elements = useMemo(() => {
     if (!show2D || frames.length === 0) return null
@@ -42,9 +43,10 @@ export function Skeleton2D() {
     const bones: ReactElement[] = []
 
     const frustumDepth = FRUSTUM_D * 0.98
+    const landmarkSpace = landmarkSpaceFromMeta(sessionMeta)
 
     function pos2D(pt: Landmark): [number, number, number] | null {
-      const wp = unproject(pt.x, pt.y, frustumDepth, frame.sensor, intrinsics)
+      const wp = unproject(pt.x, pt.y, frustumDepth, frame.sensor, intrinsics, landmarkSpace)
       if (!wp) return null
       return [wp.x, wp.y, wp.z]
     }
@@ -96,7 +98,7 @@ export function Skeleton2D() {
     }
 
     return <group>{joints}{bones}</group>
-  }, [show2D, frameIdx, frames, poseEvents, intrinsics, confidenceThreshold, videoAlpha, skelMsOffset])
+  }, [show2D, frameIdx, frames, poseEvents, intrinsics, sessionMeta, confidenceThreshold, videoAlpha, skelMsOffset])
 
   return elements
 }

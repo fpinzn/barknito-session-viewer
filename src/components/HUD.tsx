@@ -3,6 +3,7 @@ import { usePlaybackStore } from '../stores/playbackStore'
 import { findNearestPoseModels } from '../features/viewer/frame-utils'
 import { useUIStore } from '../stores/uiStore'
 import { visibleTimeForFrameMs } from '../features/viewer/video-timing'
+import { landmarkSpaceFromMeta, VISION_NATIVE } from '../features/viewer/unproject'
 
 export function HUD() {
   const frames = useSessionStore(s => s.frames)
@@ -37,8 +38,16 @@ export function HUD() {
     landmarkCount += landmarks.size
   }
 
+  const landmarkSpace = landmarkSpaceFromMeta(sessionMeta)
+  const usesLegacyCoords = landmarkSpace === VISION_NATIVE && sessionMeta?.landmarkSpace === undefined
+
   return (
     <div className="hud">
+      {usesLegacyCoords && (
+        <div className="hud-badge hud-badge-legacy" title="This session predates the landmarkSpace declaration. Landmarks are raw Vision output in the native landscape buffer with a bottom-left origin, and are being converted for display.">
+          ⚠ legacy coords — vision native, converted
+        </div>
+      )}
       <div>Frame: <span className="val">{frameIdx + 1} / {frames.length}</span></div>
       <div>Frame ID: <span className="val">{frame.id}</span></div>
       <div>Frame Session Time: <span className="val">{(frame.ts / 1000).toFixed(2)}s</span></div>

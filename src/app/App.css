@@ -129,6 +129,22 @@ body {
   color: #ddd;
 }
 
+/* Flags sessions predating the landmarkSpace declaration, whose landmarks are raw
+   Vision output being converted for display. See ml/docs/session-bundle-contract.md. */
+.hud-badge-legacy {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 2px 8px;
+  border: 1px solid #a86a12;
+  border-radius: 4px;
+  background: rgba(168, 106, 18, 0.18);
+  color: #f0b354;
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: auto;
+  cursor: help;
+}
+
 /* ─── Legend ───────────────────────────────────────────────────────── */
 
 .legend {
