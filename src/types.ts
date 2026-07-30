@@ -56,11 +56,6 @@ export interface SessionMeta {
    * bottom-left origin. See `ml/docs/session-bundle-contract.md`.
    */
   landmarkSpace?: string
-  /**
-   * The video's first frame PTS in milliseconds. Also encoded in the MP4 as an `elst`
-   * empty edit, but decoders rebase that away, so the recorder writes it explicitly.
-   */
-  videoStartPtsMs?: number
   [key: string]: unknown
 }
 

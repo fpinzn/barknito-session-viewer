@@ -8,14 +8,13 @@ export function computeVideoStartOffsetSec(
 ): number {
   if (!isFinite(mediaDurationSec) || mediaDurationSec <= 0) return 0
 
-  // The recorder writes the video's true first PTS when it knows it. Prefer that over
-  // end-aligning, which assumes no trailing gap — measured error on the project-4
-  // batch is 132 ms on one session and 5965 ms on another.
-  const recordedStartPtsMs = sessionMeta?.videoStartPtsMs
-  if (typeof recordedStartPtsMs === 'number' && isFinite(recordedStartPtsMs) && recordedStartPtsMs >= 0) {
-    return recordedStartPtsMs / 1000
-  }
-
+  // Deliberately does NOT read a recorded video start PTS. A branch preferring
+  // sessionMeta.videoStartPtsMs was added and removed: subtracting it is only correct if
+  // the media timeline base equals the empty-edit duration, and app videos *present*
+  // that empty edit, so browser currentTime already equals absolute PTS. Subtracting
+  // would seek ~163 s early on 20260520-154443-fca8. The end-alignment below, plus the
+  // seekable/currentTime base in mediaTimeForSession, handles both browser behaviours.
+  // See ml/docs/label-studio-alignment-verification-2026-07-29.md.
   if (typeof sessionTimelineLastMs === 'number' && isFinite(sessionTimelineLastMs) && sessionTimelineLastMs > 0) {
     return Math.max(0, (sessionTimelineLastMs / 1000) - mediaDurationSec)
   }

@@ -18,24 +18,23 @@ describe('video timing helpers', () => {
     expect(offsetMs).toBe(15000)
   })
 
-  it('prefers a recorded video start PTS over the end-alignment estimate', () => {
-    const offsetMs = computeVideoStartOffsetMs(
+  it('ignores a recorded video start PTS and end-aligns regardless', () => {
+    // App videos present their leading empty edit, so browser currentTime already equals
+    // absolute PTS. Subtracting a recorded start PTS on top of that would seek ~163 s
+    // early. This pins that the branch stays out.
+    const withPts = computeVideoStartOffsetMs(
       { startedAtMs: 1000, endedAtMs: 61731, videoStartPtsMs: 162998 },
       255.035,
       417901,
     )
-
-    expect(offsetMs).toBe(162998)
-  })
-
-  it('falls back to end alignment when no start PTS is recorded', () => {
-    const offsetMs = computeVideoStartOffsetMs(
+    const withoutPts = computeVideoStartOffsetMs(
       { startedAtMs: 1000, endedAtMs: 61731 },
       255.035,
       417901,
     )
 
-    expect(offsetMs).toBe(162866)
+    expect(withPts).toBe(withoutPts)
+    expect(withPts).toBe(162866)
   })
 
   it('prefers the recorded timeline duration over session metadata duration', () => {
