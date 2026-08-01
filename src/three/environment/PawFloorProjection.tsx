@@ -147,11 +147,33 @@ export function PawFloorProjection() {
     // Gated on the same `Conf` slider the skeleton uses for landmarks.
     const tracks = collectTrackSamples(
       pawFloorFrameMap, current.ts, TRACK_WINDOW_MS, confidenceThreshold,
+      analysis.quality.baseline,
     )
     for (const [name, samples] of tracks) {
       for (let i = 1; i < samples.length; i++) {
         const opacity = trackOpacityForAge(current.ts - samples[i].ts, TRACK_WINDOW_MS)
         if (opacity <= 0.02) continue
+
+        // Break the line across a contradicted sample instead of drawing a
+        // phantom stride into and out of it.
+        if (samples[i].suspect || samples[i - 1].suspect) {
+          if (samples[i].suspect) {
+            const s = samples[i].world
+            elements.push(
+              <mesh
+                key={`suspect-${name}-${i}`}
+                position={R({ x: s.x, y: s.y + 0.004, z: s.z })}
+                rotation={[-Math.PI / 2, 0, 0]}
+              >
+                <ringGeometry args={[0.02, 0.03, 20]} />
+                <meshBasicMaterial
+                  color={0xdd4444} transparent opacity={opacity * 0.8} side={THREE.DoubleSide} />
+              </mesh>,
+            )
+          }
+          continue
+        }
+
         const a = samples[i - 1].world
         const b = samples[i].world
         elements.push(

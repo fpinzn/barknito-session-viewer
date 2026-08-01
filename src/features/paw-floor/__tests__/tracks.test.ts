@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { collectTrackSamples } from '../tracks'
 import type { PawFloorFrame, PawHit, PawName } from '../../../types'
+import type { StanceBaseline } from '../stance'
 
 function frame(ts: number, entries: Array<[PawName, number, boolean]>): PawFloorFrame {
   const paws = new Map<PawName, PawHit>()
@@ -84,5 +85,39 @@ describe('collectTrackSamples', () => {
     const out = collectTrackSamples(m, 0, 2000, 0.4)
     expect(out.has('left_front_paw')).toBe(true)
     expect(out.has('right_back_paw')).toBe(false)
+  })
+
+  it('marks samples not suspect when no baseline is supplied', () => {
+    const m = build([frame(0, [['left_front_paw', 0.9, true]])])
+    expect(collectTrackSamples(m, 0, 2000, 0.4).get('left_front_paw')![0].suspect).toBe(false)
+  })
+
+  it('marks collapsed paws suspect when a baseline is supplied', () => {
+    const baseline: StanceBaseline = {
+      qualified: true,
+      pairs: [{
+        pair: ['left_back_paw', 'right_back_paw'], median: 0.249, relIQR: 0.1, samples: 100,
+      }],
+    }
+    // Both back paws at the same world point — `frame()` places every paw at
+    // the same coordinates, so this is a collapse against a 0.249 m baseline.
+    const m = build([frame(0, [['left_back_paw', 0.9, true], ['right_back_paw', 0.73, true]])])
+    const out = collectTrackSamples(m, 0, 2000, 0.4, baseline)
+    expect(out.get('left_back_paw')![0].suspect).toBe(true)
+    expect(out.get('right_back_paw')![0].suspect).toBe(true)
+  })
+
+  it('flags a swapped paw even though its confidence is high', () => {
+    // The failure this exists for: on 20260731-174207-801b the bogus sample
+    // carried confidence 0.73, above the correct one it replaced.
+    const baseline: StanceBaseline = {
+      qualified: true,
+      pairs: [{
+        pair: ['left_back_paw', 'right_back_paw'], median: 0.249, relIQR: 0.1, samples: 100,
+      }],
+    }
+    const m = build([frame(0, [['left_back_paw', 0.99, true], ['right_back_paw', 0.73, true]])])
+    const out = collectTrackSamples(m, 0, 2000, 0.3, baseline)
+    expect(out.get('right_back_paw')![0].suspect).toBe(true)
   })
 })
