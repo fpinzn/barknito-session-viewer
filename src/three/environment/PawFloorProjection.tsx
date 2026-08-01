@@ -8,6 +8,7 @@ import { usePawFloorAnalysis, rayColorHex } from '../../features/paw-floor/usePa
 import { rayGeometry, correctForLift, type Vec3 } from '../../features/paw-floor/geometry'
 import { fitSingleLift } from '../../features/paw-floor/lift'
 import { mirrorAboutCamera } from '../../features/paw-floor/renderSpace'
+import { collectTrackSamples } from '../../features/paw-floor/tracks'
 import {
   pairDeviationColorHex,
   trackOpacityForAge,
@@ -27,16 +28,14 @@ const PAW_COLORS: Record<PawName, number> = {
 
 /** Trailing track window, in milliseconds. */
 const TRACK_WINDOW_MS = 2000
-/**
- * Pixels of landmark error the hit disc represents. Still drawn to scale, but
- * 10 px was too small to see against a 1.5 m scene; 30 px lands the disc at
- * roughly real paw size (~7 cm across) at typical viewing angles.
- */
-const DISC_PIXELS = 30
+/** Pixels of landmark error the hit disc represents, drawn to scale. */
+const DISC_PIXELS = 15
 /** Floor on the disc radius so a very steep ray still leaves something visible. */
-const MIN_DISC_RADIUS_M = 0.02
+const MIN_DISC_RADIUS_M = 0.01
 /** Where a miss stub terminates below the camera, in metres. */
 const MISS_STUB_M = 1.5
+/** Trailing tracks are the thing you actually follow, so they read heaviest. */
+const TRACK_LINE_WIDTH = 4
 
 function nearestPawFrame(
   frames: Map<number, PawFloorFrame>,
@@ -57,6 +56,7 @@ function nearestPawFrame(
 export function PawFloorProjection() {
   const showPawFloor = useUIStore(s => s.showPawFloor)
   const showPawLift = useUIStore(s => s.showPawLift)
+  const confidenceThreshold = useUIStore(s => s.confidenceThreshold)
   const pawFloorFrameMap = useSessionStore(s => s.pawFloorFrameMap)
   const frames = useSessionStore(s => s.frames)
   const frameIdx = usePlaybackStore(s => s.currentFrameIdx)
@@ -91,6 +91,10 @@ export function PawFloorProjection() {
 
     for (const [name, paw] of match.frame.paws) {
       const color = PAW_COLORS[name]
+
+      // Same gate as the tracks and the skeleton, so a sample the slider has
+      // hidden does not still get a ray drawn to it.
+      if (paw.conf < confidenceThreshold) continue
 
       if (!paw.hit || !paw.world) {
         // Miss stub: a dashed ray into the scene, so a dropout reads as
@@ -140,29 +144,25 @@ export function PawFloorProjection() {
     }
 
     // Trailing tracks, one segment per step so opacity can fall off with age.
-    const trackPoints = new Map<PawName, Array<{ p: [number, number, number]; ts: number }>>()
-    for (const [, frame] of pawFloorFrameMap) {
-      if (frame.ts > current.ts || frame.ts < current.ts - TRACK_WINDOW_MS) continue
-      for (const [name, paw] of frame.paws) {
-        if (!paw.hit || !paw.world) continue
-        if (!trackPoints.has(name)) trackPoints.set(name, [])
-        trackPoints.get(name)!.push({
-          p: R({ x: paw.world.x, y: paw.world.y + 0.001, z: paw.world.z }),
-          ts: frame.ts,
-        })
-      }
-    }
-    for (const [name, samples] of trackPoints) {
-      samples.sort((m, n) => m.ts - n.ts)
+    // Gated on the same `Conf` slider the skeleton uses for landmarks.
+    const tracks = collectTrackSamples(
+      pawFloorFrameMap, current.ts, TRACK_WINDOW_MS, confidenceThreshold,
+    )
+    for (const [name, samples] of tracks) {
       for (let i = 1; i < samples.length; i++) {
         const opacity = trackOpacityForAge(current.ts - samples[i].ts, TRACK_WINDOW_MS)
         if (opacity <= 0.02) continue
+        const a = samples[i - 1].world
+        const b = samples[i].world
         elements.push(
           <Line
             key={`track-${name}-${i}`}
-            points={[samples[i - 1].p, samples[i].p]}
+            points={[
+              R({ x: a.x, y: a.y + 0.001, z: a.z }),
+              R({ x: b.x, y: b.y + 0.001, z: b.z }),
+            ]}
             color={PAW_COLORS[name]}
-            lineWidth={1}
+            lineWidth={TRACK_LINE_WIDTH}
             transparent
             opacity={opacity * 0.6}
           />,
@@ -235,5 +235,5 @@ export function PawFloorProjection() {
     }
 
     return elements.length > 0 ? <group>{elements}</group> : null
-  }, [showPawFloor, showPawLift, analysis, pawFloorFrameMap, frames, frameIdx])
+  }, [showPawFloor, showPawLift, confidenceThreshold, analysis, pawFloorFrameMap, frames, frameIdx])
 }
