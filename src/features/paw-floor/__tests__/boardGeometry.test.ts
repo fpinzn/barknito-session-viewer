@@ -32,12 +32,31 @@ describe('boardGeometry', () => {
     expect(g.cells.map(c => c.pos)).toEqual([[0, 0], [0, 1], [1, 0], [1, 1]])
   })
 
-  it('centres each cell within its quadrant', () => {
+  it('centres each cell per BoardV2 placement', () => {
     const g = boardGeometry([placed], 0.9)!
     const c00 = g.cells.find(c => c.pos[0] === 0 && c.pos[1] === 0)!
-    // 2x2 over 1.8 m: cell centres sit 0.45 m from the board centre.
+    // BoardV2.cs: x = -half + cellSide*(col+0.5); 2 cols over 1.8 m gives
+    // cellSide 0.9, so cell 0 sits 0.45 m from the board centre.
     expect(Math.abs(c00.center.x)).toBeCloseTo(0.45, 6)
     expect(Math.abs(c00.center.z - 4)).toBeCloseTo(0.45, 6)
+  })
+
+  it('derives cell side from columns on both axes', () => {
+    // LevelConfigV2.cs: CellSide = TotalSizeM / Cols — rows do not divide z.
+    const wide = boardGeometry([{ ...placed, gridSize: [4, 1] }], 0.9)!
+    expect(wide.cellRadiusM).toBeCloseTo(1.8 / 4 / 2, 6)
+    expect(wide.cells).toHaveLength(4)
+  })
+
+  it('puts the user circle in front of the board, not at its centre', () => {
+    // TargetUserCircleGeometry: frontRowCenterZ - tangentDistance - 0.5 m.
+    const g = boardGeometry([placed], 0.9)!
+    expect(g.userCircleCenter.z).toBeLessThan(g.center.z)
+    const cellR = 0.45
+    const userR = 0.45
+    const lateral = 0.45
+    const tangent = Math.sqrt((cellR + userR) ** 2 - lateral ** 2)
+    expect(g.userCircleCenter.z).toBeCloseTo(4 + (-0.9 + cellR - tangent - 0.5), 5)
   })
 
   it('applies the board yaw to the outline', () => {

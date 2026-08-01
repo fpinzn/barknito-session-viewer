@@ -2,16 +2,21 @@ import type { GameEvent } from '../../types'
 
 export interface Pt { x: number; z: number }
 
+/** TargetUserCircleGeometry.DefaultBoardBorderGapM */
+const BOARD_BORDER_GAP_M = 0.5
+
 export interface BoardCell {
   pos: [number, number]
   center: Pt
-  corners: Pt[]
 }
 
 export interface BoardGeometry {
   center: Pt
   outline: Pt[]
   cells: BoardCell[]
+  /** Cells are circles; the hit test is distance-to-centre vs this radius. */
+  cellRadiusM: number
+  userCircleCenter: Pt
   userCircleRadiusM: number
   sizeM: number
 }
@@ -61,30 +66,39 @@ export function boardGeometry(
   ]
 
   const grid = (placed.gridSize as number[] | undefined) ?? [1, 1]
-  const gx = Math.max(1, Math.round(grid[0] ?? 1))
-  const gz = Math.max(1, Math.round(grid[1] ?? 1))
-  const cellW = sizeM / gx
-  const cellH = sizeM / gz
+  const cols = Math.max(1, Math.round(grid[0] ?? 1))
+  const rows = Math.max(1, Math.round(grid[1] ?? 1))
+
+  // BoardV2.cs: cellSide is totalSize/cols on BOTH axes — cells stay square
+  // even when the grid is not, so a wide grid does not fill the board in z.
+  const cellSide = sizeM / cols
+  const cellRadiusM = cellSide / 2
 
   const cells: BoardCell[] = []
-  for (let i = 0; i < gx; i++) {
-    for (let j = 0; j < gz; j++) {
-      const lx = (i + 0.5) * cellW - half
-      const lz = (j + 0.5) * cellH - half
+  for (let col = 0; col < cols; col++) {
+    for (let row = 0; row < rows; row++) {
       cells.push({
-        pos: [i, j],
-        center: place(lx, lz),
-        corners: [
-          place(lx - cellW / 2, lz - cellH / 2),
-          place(lx + cellW / 2, lz - cellH / 2),
-          place(lx + cellW / 2, lz + cellH / 2),
-          place(lx - cellW / 2, lz + cellH / 2),
-        ],
+        pos: [col, row],
+        center: place(-half + cellSide * (col + 0.5), -half + cellSide * (row + 0.5)),
       })
     }
   }
 
-  return { center, outline, cells, userCircleRadiusM: userCircleDiameterM / 2, sizeM }
+  // TargetUserCircleGeometry.GetUserCircleLocalCenter: the handler's circle sits
+  // in front of the front row, tangent to it, plus a border gap — not at the
+  // board's centre.
+  const userCircleRadiusM = userCircleDiameterM / 2
+  const frontRowCenterZ = -half + cellRadiusM
+  const lateralOffset = cols > 1 ? cellSide / 2 : 0
+  const tangentDistance = Math.sqrt(Math.max(
+    0,
+    Math.pow(cellRadiusM + userCircleRadiusM, 2) - Math.pow(lateralOffset, 2),
+  ))
+  const userCircleCenter = place(0, frontRowCenterZ - tangentDistance - BOARD_BORDER_GAP_M)
+
+  return {
+    center, outline, cells, cellRadiusM, userCircleCenter, userCircleRadiusM, sizeM,
+  }
 }
 
 /** The cell the game had active at a given moment, from the last RoundStarted. */

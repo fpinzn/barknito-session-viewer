@@ -123,14 +123,21 @@ export function PawFloorMap() {
     if (board) {
       const active = current ? activeCellAt(gameEvents, current.ts) : null
 
+      // Cells are circles: the game's hit test is distance-to-centre vs
+      // CellRadius, so drawing squares misrepresented the play area.
+      const rEdge = proj.toScreen(board.center.x + board.cellRadiusM, board.center.z)
+      const cellR = Math.abs(rEdge.x - proj.toScreen(board.center.x, board.center.z).x)
+
       for (const cell of board.cells) {
         const isActive = active !== null && cell.pos[0] === active[0] && cell.pos[1] === active[1]
-        poly(cell.corners)
+        const cc = proj.toScreen(cell.center.x, cell.center.z)
+        ctx.beginPath()
+        ctx.arc(cc.x, cc.y, cellR, 0, Math.PI * 2)
         if (isActive) {
-          ctx.fillStyle = 'rgba(68,221,136,0.13)'
+          ctx.fillStyle = 'rgba(68,221,136,0.16)'
           ctx.fill()
         }
-        ctx.strokeStyle = isActive ? '#44dd88' : 'rgba(68,136,255,0.45)'
+        ctx.strokeStyle = isActive ? '#44dd88' : 'rgba(68,136,255,0.5)'
         ctx.lineWidth = isActive ? 2 : 1
         ctx.setLineDash(isActive ? [] : [3, 3])
         ctx.stroke()
@@ -145,9 +152,12 @@ export function PawFloorMap() {
       ctx.stroke()
       ctx.setLineDash([])
 
-      // User circle — where the handler is meant to stand.
-      const c = proj.toScreen(board.center.x, board.center.z)
-      const edge = proj.toScreen(board.center.x + board.userCircleRadiusM, board.center.z)
+      // User circle — where the handler stands. It sits in front of the front
+      // row, not at the board centre.
+      const c = proj.toScreen(board.userCircleCenter.x, board.userCircleCenter.z)
+      const edge = proj.toScreen(
+        board.userCircleCenter.x + board.userCircleRadiusM, board.userCircleCenter.z,
+      )
       ctx.strokeStyle = 'rgba(136,136,255,0.5)'
       ctx.lineWidth = 1
       ctx.setLineDash([2, 3])
