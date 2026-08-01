@@ -1,17 +1,25 @@
 import type { PawFloorFrame, PawName } from '../../types'
 import type { Vec3 } from './geometry'
 import { detectCollapsedPaws } from './collapse'
+import { detectJerkSpikes } from './jerk'
 import type { PawPositions, StanceBaseline } from './stance'
 
 export interface TrackSample {
   ts: number
   world: Vec3
   /**
-   * The stance geometry contradicts this sample — typically two paws collapsed
-   * onto one point after a pose-model identity swap. Drawn as a break in the
-   * track rather than a real 28 cm stride.
+   * Something contradicts this sample, so it is drawn as a break in the track
+   * rather than a real stride. Two independent tests set it:
+   *
+   * - `collapse` — this paw shares a point with another, an identity swap that
+   *   persists for several frames while the paw appears stationary.
+   * - `jerk` — this paw departed and immediately returned, a single-frame
+   *   teleport that leaves the stance geometry intact.
+   *
+   * Neither test subsumes the other.
    */
   suspect: boolean
+  suspectReason: 'collapse' | 'jerk' | null
 }
 
 /**
@@ -50,16 +58,26 @@ export function collectTrackSamples(
       if (!paw.hit || !paw.world) continue
       if (paw.conf < minConfidence) continue
       if (!out.has(name)) out.set(name, [])
+      const isCollapsed = collapsed?.has(name) ?? false
       out.get(name)!.push({
         ts: frame.ts,
         world: paw.world,
-        suspect: collapsed?.has(name) ?? false,
+        suspect: isCollapsed,
+        suspectReason: isCollapsed ? 'collapse' : null,
       })
     }
   }
 
   for (const samples of out.values()) {
     samples.sort((a, b) => a.ts - b.ts)
+
+    // Second, independent pass: single-frame teleports the collapse test cannot
+    // see, because they leave the rest of the stance untouched.
+    for (const i of detectJerkSpikes(samples)) {
+      if (samples[i].suspect) continue
+      samples[i].suspect = true
+      samples[i].suspectReason = 'jerk'
+    }
   }
 
   return out

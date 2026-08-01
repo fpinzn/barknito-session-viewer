@@ -167,7 +167,8 @@ export function PawFloorProjection() {
               >
                 <ringGeometry args={[0.02, 0.03, 20]} />
                 <meshBasicMaterial
-                  color={0xdd4444} transparent opacity={opacity * 0.8} side={THREE.DoubleSide} />
+                  color={samples[i].suspectReason === 'jerk' ? 0xff8800 : 0xdd4444}
+                  transparent opacity={opacity * 0.8} side={THREE.DoubleSide} />
               </mesh>,
             )
           }
