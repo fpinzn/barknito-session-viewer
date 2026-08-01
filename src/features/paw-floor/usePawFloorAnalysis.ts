@@ -1,10 +1,17 @@
 import { useMemo } from 'react'
 import { useSessionStore } from '../../stores/sessionStore'
 import { sessionQuality, type SessionQuality } from './quality'
+import { timelineCoverage } from './coverage'
 import type { Vec3 } from './geometry'
 
 /** Nearest-frame tolerance when a paw sample has no exact sensor row. */
 const MAX_FRAME_GAP = 3
+/**
+ * How near a paw frame must be to the playhead for the scene layer to draw it.
+ * Must match `PawFloorProjection`'s match tolerance, or the reported coverage
+ * will not describe what is actually rendered.
+ */
+export const PAW_MATCH_TOLERANCE_MS = 100
 
 export function rayColorHex(depressionDeg: number): number {
   if (depressionDeg >= 55) return 0x44dd88
@@ -54,6 +61,8 @@ export interface PawFloorAnalysis {
   quality: SessionQuality
   camFor: (frameId: number) => Vec3 | null
   focalPx: number
+  /** Fraction of the session's frames where the layer has anything to draw. */
+  coverage: number
 }
 
 export function usePawFloorAnalysis(): PawFloorAnalysis | null {
@@ -70,6 +79,12 @@ export function usePawFloorAnalysis(): PawFloorAnalysis | null {
     const quality = sessionQuality({ pawFrames: pawFloorFrameMap, camFor, focalPx })
     if (!quality) return null
 
-    return { quality, camFor, focalPx }
+    const coverage = timelineCoverage(
+      [...pawFloorFrameMap.values()].map(f => f.ts),
+      [...sensorFrameMap.values()].map(s => s.ts),
+      PAW_MATCH_TOLERANCE_MS,
+    )
+
+    return { quality, camFor, focalPx, coverage }
   }, [pawFloorFrameMap, sensorFrameMap, intrinsics])
 }

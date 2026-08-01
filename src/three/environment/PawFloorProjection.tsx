@@ -5,8 +5,9 @@ import { useSessionStore } from '../../stores/sessionStore'
 import { usePlaybackStore } from '../../stores/playbackStore'
 import { useUIStore } from '../../stores/uiStore'
 import { usePawFloorAnalysis, rayColorHex } from '../../features/paw-floor/usePawFloorAnalysis'
-import { rayGeometry, correctForLift } from '../../features/paw-floor/geometry'
+import { rayGeometry, correctForLift, type Vec3 } from '../../features/paw-floor/geometry'
 import { fitSingleLift } from '../../features/paw-floor/lift'
+import { mirrorAboutCamera } from '../../features/paw-floor/renderSpace'
 import {
   pairDeviationColorHex,
   trackOpacityForAge,
@@ -26,9 +27,15 @@ const PAW_COLORS: Record<PawName, number> = {
 
 /** Trailing track window, in milliseconds. */
 const TRACK_WINDOW_MS = 2000
-/** Pixels of landmark error the hit disc is drawn to represent. */
-const DISC_PIXELS = 10
-/** Where a miss stub terminates along the screen ray, in metres. */
+/**
+ * Pixels of landmark error the hit disc represents. Still drawn to scale, but
+ * 10 px was too small to see against a 1.5 m scene; 30 px lands the disc at
+ * roughly real paw size (~7 cm across) at typical viewing angles.
+ */
+const DISC_PIXELS = 30
+/** Floor on the disc radius so a very steep ray still leaves something visible. */
+const MIN_DISC_RADIUS_M = 0.02
+/** Where a miss stub terminates below the camera, in metres. */
 const MISS_STUB_M = 1.5
 
 function nearestPawFrame(
@@ -59,7 +66,7 @@ export function PawFloorProjection() {
     if (!showPawFloor || !analysis || !pawFloorFrameMap || frames.length === 0) return null
 
     const current = frames[frameIdx]
-    if (!current) return null
+    if (!current?.sensor) return null
 
     const match = nearestPawFrame(pawFloorFrameMap, current.ts)
     if (!match) return null
@@ -67,22 +74,31 @@ export function PawFloorProjection() {
     const cam = analysis.camFor(match.frameId)
     if (!cam) return null
 
+    // Everything drawn goes through the same camera-relative X mirror the rest
+    // of the scene uses, with the *current* frame's pose — the same pose
+    // ARPlanes hands to ARPlane — so paw points sit on the plane as drawn.
+    // The analysis above stays in raw AR space, where the geometry is true.
+    const mirrorPos = current.sensor.pos
+    const mirrorRot = current.sensor.rot
+    const R = (p: Vec3): [number, number, number] => {
+      const m = mirrorAboutCamera(p, mirrorPos, mirrorRot)
+      return [m.x, m.y, m.z]
+    }
+
     const elements: ReactElement[] = []
     const positions: PawPositions = new Map()
+    const camRendered = R(cam)
 
     for (const [name, paw] of match.frame.paws) {
       const color = PAW_COLORS[name]
 
       if (!paw.hit || !paw.world) {
-        // Miss stub: a dashed ray into the scene ending in a marker, so a
-        // dropout reads as present-and-failed rather than silently absent.
+        // Miss stub: a dashed ray into the scene, so a dropout reads as
+        // present-and-failed rather than silently absent.
         elements.push(
           <Line
             key={`miss-${name}`}
-            points={[
-              [cam.x, cam.y, cam.z],
-              [cam.x, cam.y - MISS_STUB_M, cam.z],
-            ]}
+            points={[camRendered, R({ x: cam.x, y: cam.y - MISS_STUB_M, z: cam.z })]}
             color={color}
             lineWidth={1}
             dashed
@@ -102,10 +118,7 @@ export function PawFloorProjection() {
       elements.push(
         <Line
           key={`ray-${name}`}
-          points={[
-            [cam.x, cam.y, cam.z],
-            [paw.world.x, paw.world.y, paw.world.z],
-          ]}
+          points={[camRendered, R(paw.world)]}
           color={rayColorHex(geom.depressionDeg)}
           lineWidth={1.5}
           transparent
@@ -113,12 +126,11 @@ export function PawFloorProjection() {
         />,
       )
 
-      // Hit disc sized to DISC_PIXELS of landmark error, drawn to scale.
-      const radius = Math.max(0.005, geom.metresPerPixel * DISC_PIXELS)
+      const radius = Math.max(MIN_DISC_RADIUS_M, geom.metresPerPixel * DISC_PIXELS)
       elements.push(
         <mesh
           key={`disc-${name}`}
-          position={[paw.world.x, paw.world.y + 0.002, paw.world.z]}
+          position={R({ x: paw.world.x, y: paw.world.y + 0.002, z: paw.world.z })}
           rotation={[-Math.PI / 2, 0, 0]}
         >
           <circleGeometry args={[radius, 24]} />
@@ -127,8 +139,7 @@ export function PawFloorProjection() {
       )
     }
 
-    // Trailing tracks over the last TRACK_WINDOW_MS, one segment per step so
-    // opacity can fall off with age.
+    // Trailing tracks, one segment per step so opacity can fall off with age.
     const trackPoints = new Map<PawName, Array<{ p: [number, number, number]; ts: number }>>()
     for (const [, frame] of pawFloorFrameMap) {
       if (frame.ts > current.ts || frame.ts < current.ts - TRACK_WINDOW_MS) continue
@@ -136,7 +147,7 @@ export function PawFloorProjection() {
         if (!paw.hit || !paw.world) continue
         if (!trackPoints.has(name)) trackPoints.set(name, [])
         trackPoints.get(name)!.push({
-          p: [paw.world.x, paw.world.y + 0.001, paw.world.z],
+          p: R({ x: paw.world.x, y: paw.world.y + 0.001, z: paw.world.z }),
           ts: frame.ts,
         })
       }
@@ -170,8 +181,8 @@ export function PawFloorProjection() {
         <Line
           key={`chord-${stat.pair[0]}-${stat.pair[1]}`}
           points={[
-            [a.x, a.y + 0.003, a.z],
-            [b.x, b.y + 0.003, b.z],
+            R({ x: a.x, y: a.y + 0.003, z: a.z }),
+            R({ x: b.x, y: b.y + 0.003, z: b.z }),
           ]}
           color={pairDeviationColorHex(observed, stat.median)}
           lineWidth={1}
@@ -181,8 +192,8 @@ export function PawFloorProjection() {
       )
     }
 
-    // A ring under the stance turns amber when the plane the hits are resolving
-    // against has moved from where it sat for most of the session.
+    // A ring turns amber when the plane the hits resolve against has moved from
+    // where it sat for most of the session.
     const medianY = planeMedianY(pawFloorFrameMap)
     const currentY = [...positions.values()][0]?.y
     if (medianY !== null && currentY !== undefined) {
@@ -190,7 +201,7 @@ export function PawFloorProjection() {
         elements.push(
           <mesh
             key="plane-drift"
-            position={[cam.x, currentY + 0.0005, cam.z]}
+            position={R({ x: cam.x, y: currentY + 0.0005, z: cam.z })}
             rotation={[-Math.PI / 2, 0, 0]}
           >
             <ringGeometry args={[1.2, 1.35, 48]} />
@@ -210,8 +221,8 @@ export function PawFloorProjection() {
           <Line
             key="lift-stem"
             points={[
-              [base.x, hit.y, base.z],
-              [base.x, hit.y + fit.liftM, base.z],
+              R({ x: base.x, y: hit.y, z: base.z }),
+              R({ x: base.x, y: hit.y + fit.liftM, z: base.z }),
             ]}
             color={0xffffff}
             lineWidth={2}

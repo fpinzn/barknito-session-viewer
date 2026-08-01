@@ -1,4 +1,6 @@
-import { usePawFloorAnalysis } from '../features/paw-floor/usePawFloorAnalysis'
+import { usePawFloorAnalysis, PAW_MATCH_TOLERANCE_MS } from '../features/paw-floor/usePawFloorAnalysis'
+import { useSessionStore } from '../stores/sessionStore'
+import { usePlaybackStore } from '../stores/playbackStore'
 import type { PawName } from '../types'
 
 const VERDICT_COLOR: Record<string, string> = {
@@ -16,7 +18,21 @@ const PAW_LABEL: Record<PawName, string> = {
 
 export function PawFloorVerdict() {
   const analysis = usePawFloorAnalysis()
+  const pawFloorFrameMap = useSessionStore(s => s.pawFloorFrameMap)
+  const frames = useSessionStore(s => s.frames)
+  const frameIdx = usePlaybackStore(s => s.currentFrameIdx)
+
   if (!analysis) return null
+
+  // Whether there is anything to draw *right now*. Without this, scrubbing into
+  // a stretch with no detections is indistinguishable from the layer being broken.
+  const nowTs = frames[frameIdx]?.ts
+  let hasSampleHere = false
+  if (nowTs !== undefined && pawFloorFrameMap) {
+    for (const [, f] of pawFloorFrameMap) {
+      if (Math.abs(f.ts - nowTs) <= PAW_MATCH_TOLERANCE_MS) { hasSampleHere = true; break }
+    }
+  }
 
   const q = analysis.quality
   const counts = (Object.entries(q.pawCounts) as Array<[PawName, number]>)
@@ -44,6 +60,16 @@ export function PawFloorVerdict() {
         {Number.isFinite(q.residualP50M) ? `${(q.residualP50M * 100).toFixed(1)} cm` : 'n/a'}
       </div>
       <div>{counts}</div>
+      <div>
+        timeline coverage{' '}
+        <span style={{ color: analysis.coverage < 0.6 ? '#ddaa44' : '#ccc' }}>
+          {(analysis.coverage * 100).toFixed(0)}%
+        </span>
+        {analysis.coverage < 0.6 && ' — most of this session has no paw detections'}
+      </div>
+      <div style={{ color: hasSampleHere ? '#44dd88' : '#dd4444' }}>
+        {hasSampleHere ? '● paw sample at this frame' : '○ no paw sample at this frame'}
+      </div>
       <div>
         stance baseline {q.baseline.qualified ? 'stable' : 'loose'} ({q.baseline.pairs.length} pairs)
         {q.baseline.qualified ? '' : ' — lift estimate unavailable'}
