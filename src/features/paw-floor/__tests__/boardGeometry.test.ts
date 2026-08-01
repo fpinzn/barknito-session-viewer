@@ -81,6 +81,32 @@ describe('boardGeometry', () => {
     expect(g.cells).toHaveLength(1)
     expect(g.cells[0].center).toEqual({ x: 0, z: 4 })
   })
+
+  it('defaults the circle to the pitch when circleDiameterM is absent', () => {
+    // Bundles recorded before circleDiameterM existed must render unchanged.
+    const g = boardGeometry([placed], 0.9)!
+    expect(g.cellPitchM).toBeCloseTo(0.9, 6)
+    expect(g.cellRadiusM).toBeCloseTo(0.45, 6)
+  })
+
+  it('uses circleDiameterM for the circle but never for the lattice', () => {
+    const spaced = boardGeometry([{ ...placed, circleDiameterM: 0.45 }], 0.9)!
+    expect(spaced.cellPitchM).toBeCloseTo(0.9, 6)
+    expect(spaced.cellRadiusM).toBeCloseTo(0.225, 6)
+
+    // Cell centres are on the pitch lattice and must not move.
+    const c00 = spaced.cells.find(c => c.pos[0] === 0 && c.pos[1] === 0)!
+    expect(Math.abs(c00.center.x)).toBeCloseTo(0.45, 6)
+    expect(Math.abs(c00.center.z - 4)).toBeCloseTo(0.45, 6)
+  })
+
+  it('keeps the user circle put when only circleDiameterM changes', () => {
+    // GetUserCircleLocalCenter is derived from the PITCH, not the drawn circle.
+    const tangent = boardGeometry([placed], 0.9)!
+    const spaced = boardGeometry([{ ...placed, circleDiameterM: 0.45 }], 0.9)!
+    expect(spaced.userCircleCenter.z).toBeCloseTo(tangent.userCircleCenter.z, 6)
+    expect(spaced.userCircleCenter.x).toBeCloseTo(tangent.userCircleCenter.x, 6)
+  })
 })
 
 describe('activeCellAt', () => {

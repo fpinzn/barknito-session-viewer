@@ -14,7 +14,9 @@ export interface BoardGeometry {
   center: Pt
   outline: Pt[]
   cells: BoardCell[]
-  /** Cells are circles; the hit test is distance-to-centre vs this radius. */
+  /** Distance between neighbouring cell centres. Drives the lattice and the user circle. */
+  cellPitchM: number
+  /** Radius of the drawn circle; the hit test is distance-to-centre vs this. May be < pitch/2. */
   cellRadiusM: number
   userCircleCenter: Pt
   userCircleRadiusM: number
@@ -69,35 +71,39 @@ export function boardGeometry(
   const cols = Math.max(1, Math.round(grid[0] ?? 1))
   const rows = Math.max(1, Math.round(grid[1] ?? 1))
 
-  // BoardV2.cs: cellSide is totalSize/cols on BOTH axes — cells stay square
-  // even when the grid is not, so a wide grid does not fill the board in z.
-  const cellSide = sizeM / cols
-  const cellRadiusM = cellSide / 2
+  // BoardV2.cs: pitch is totalSize/cols on BOTH axes — cells stay square even when the
+  // grid is not, so a wide grid does not fill the board in z.
+  const cellPitchM = sizeM / cols
+  // LevelConfigV2.cs EffectiveCircleDiameterM: absent means circles are tangent, which is
+  // how every bundle recorded before 2026-08-01 behaves.
+  const circleDiameterM = (placed.circleDiameterM as number | undefined) ?? cellPitchM
+  const cellRadiusM = circleDiameterM / 2
 
   const cells: BoardCell[] = []
   for (let col = 0; col < cols; col++) {
     for (let row = 0; row < rows; row++) {
       cells.push({
         pos: [col, row],
-        center: place(-half + cellSide * (col + 0.5), -half + cellSide * (row + 0.5)),
+        center: place(-half + cellPitchM * (col + 0.5), -half + cellPitchM * (row + 0.5)),
       })
     }
   }
 
-  // TargetUserCircleGeometry.GetUserCircleLocalCenter: the handler's circle sits
-  // in front of the front row, tangent to it, plus a border gap — not at the
-  // board's centre.
+  // TargetUserCircleGeometry.GetUserCircleLocalCenter: the handler's circle sits in front
+  // of the front row, tangent to it, plus a border gap — not at the board's centre. This is
+  // derived from the PITCH, not the drawn circle, so spacing circles apart does not move it.
   const userCircleRadiusM = userCircleDiameterM / 2
-  const frontRowCenterZ = -half + cellRadiusM
-  const lateralOffset = cols > 1 ? cellSide / 2 : 0
+  const pitchRadiusM = cellPitchM / 2
+  const frontRowCenterZ = -half + pitchRadiusM
+  const lateralOffset = cols > 1 ? cellPitchM / 2 : 0
   const tangentDistance = Math.sqrt(Math.max(
     0,
-    Math.pow(cellRadiusM + userCircleRadiusM, 2) - Math.pow(lateralOffset, 2),
+    Math.pow(pitchRadiusM + userCircleRadiusM, 2) - Math.pow(lateralOffset, 2),
   ))
   const userCircleCenter = place(0, frontRowCenterZ - tangentDistance - BOARD_BORDER_GAP_M)
 
   return {
-    center, outline, cells, cellRadiusM, userCircleCenter, userCircleRadiusM, sizeM,
+    center, outline, cells, cellPitchM, cellRadiusM, userCircleCenter, userCircleRadiusM, sizeM,
   }
 }
 
