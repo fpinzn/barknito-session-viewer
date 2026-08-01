@@ -50,7 +50,8 @@ const initialState = {
   // Derived, not measured — must be opted into.
   showPawLift: false,
   pawTrailSeconds: 2,
-  viewMode: 'scene' as const,
+  // The floor map is the point of the viewer, so every session opens beside it.
+  viewMode: 'split' as const,
   confidenceThreshold: 0.3,
   pointDensity: 4,
   depthZScale: 1.0,
