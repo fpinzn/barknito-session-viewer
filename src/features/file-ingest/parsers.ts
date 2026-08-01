@@ -191,7 +191,7 @@ function optFloat(raw: string | undefined): number | null {
 
 export function parsePawFloorCSV(text: string): Map<number, PawFloorFrame> {
   const lines = text.trim().split('\n')
-  const header = lines[0].replace(/^﻿/, '').split(',').map(h => h.trim())
+  const header = lines[0].replace(/^\uFEFF/, '').split(',').map(h => h.trim())
   const ci: Record<string, number> = {}
   header.forEach((h, i) => ci[h] = i)
 

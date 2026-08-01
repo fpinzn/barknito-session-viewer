@@ -6,6 +6,7 @@ import { Frustum } from './environment/Frustum'
 import { CameraTrail } from './environment/CameraTrail'
 import { PointCloud } from './environment/PointCloud'
 import { ARPlanes } from './environment/ARPlanes'
+import { PawFloorProjection } from './environment/PawFloorProjection'
 import { PlaybackEngine } from '../features/viewer/PlaybackEngine'
 import { SceneRenderer } from './scenes/SceneRenderer'
 
@@ -29,6 +30,7 @@ export function SceneCanvas() {
       <CameraTrail />
       <PointCloud />
       <ARPlanes />
+      <PawFloorProjection />
       <SceneRenderer />
       <PlaybackEngine />
     </Canvas>

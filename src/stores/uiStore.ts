@@ -5,6 +5,8 @@ interface UIState {
   show2DSkeleton: boolean
   showPointCloud: boolean
   showARPlanes: boolean
+  showPawFloor: boolean
+  showPawLift: boolean
   confidenceThreshold: number
   pointDensity: number
   depthZScale: number
@@ -20,6 +22,8 @@ interface UIState {
   setShow2DSkeleton: (v: boolean) => void
   setShowPointCloud: (v: boolean) => void
   setShowARPlanes: (v: boolean) => void
+  setShowPawFloor: (v: boolean) => void
+  setShowPawLift: (v: boolean) => void
   setConfidenceThreshold: (v: number) => void
   setPointDensity: (v: number) => void
   setDepthZScale: (v: number) => void
@@ -38,6 +42,9 @@ const initialState = {
   show2DSkeleton: true,
   showPointCloud: true,
   showARPlanes: true,
+  showPawFloor: true,
+  // Derived, not measured — must be opted into.
+  showPawLift: false,
   confidenceThreshold: 0.3,
   pointDensity: 4,
   depthZScale: 1.0,
@@ -57,6 +64,8 @@ export const useUIStore = create<UIState>((set) => ({
   setShow2DSkeleton: (v) => set({ show2DSkeleton: v }),
   setShowPointCloud: (v) => set({ showPointCloud: v }),
   setShowARPlanes: (v) => set({ showARPlanes: v }),
+  setShowPawFloor: (v) => set({ showPawFloor: v }),
+  setShowPawLift: (v) => set({ showPawLift: v }),
   setConfidenceThreshold: (v) => set({ confidenceThreshold: v }),
   setPointDensity: (v) => set({ pointDensity: v }),
   setDepthZScale: (v) => set({ depthZScale: v }),
