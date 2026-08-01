@@ -35,16 +35,19 @@ describe('makeFloorProjection', () => {
   it('fits the wider axis and centres the other', () => {
     const p = makeFloorProjection(bounds, 400, 400, 0)
     // 2 m wide into 400 px = 200 px/m; the 1 m depth uses 200 of 400 px,
-    // so it is inset by 100 px top and bottom.
+    // so it is inset by 100 px top and bottom. z is inverted, so maxZ is
+    // at the top of the drawn band and minZ at the bottom.
     expect(p.metresPerPx).toBeCloseTo(1 / 200, 6)
-    expect(p.toScreen(0, 0).y).toBeCloseTo(100, 4)
-    expect(p.toScreen(0, 1).y).toBeCloseTo(300, 4)
+    expect(p.toScreen(0, 1).y).toBeCloseTo(100, 4)
+    expect(p.toScreen(0, 0).y).toBeCloseTo(300, 4)
   })
 
-  it('maps world +x to screen right and +z to screen down', () => {
+  it('maps world +x to screen right and +z to screen UP', () => {
+    // The phone points along +z, so putting +z upward sets the operator at
+    // the bottom of the map looking up it.
     const p = makeFloorProjection(bounds, 400, 400, 0)
     expect(p.toScreen(2, 0).x).toBeGreaterThan(p.toScreen(0, 0).x)
-    expect(p.toScreen(0, 1).y).toBeGreaterThan(p.toScreen(0, 0).y)
+    expect(p.toScreen(0, 1).y).toBeLessThan(p.toScreen(0, 0).y)
   })
 
   it('honours padding', () => {

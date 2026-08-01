@@ -84,7 +84,7 @@ export function ParameterPanel() {
       <div className="check-group">
         <input type="checkbox" id="chk-split" checked={viewMode === 'split'}
           onChange={e => useUIStore.getState().setViewMode(e.target.checked ? 'split' : 'scene')} />
-        <label htmlFor="chk-split" title="Video beside a world-fixed top-down floor map. The 3D scene keeps running behind it to drive playback.">Split view</label>
+        <label htmlFor="chk-split" title="The 3D scene beside a world-fixed top-down floor map. Use Follow cam for a head-on view of the video.">Split view</label>
       </div>
       <div className="check-group">
         <input type="checkbox" id="chk-pawfloor" checked={showPawFloor}

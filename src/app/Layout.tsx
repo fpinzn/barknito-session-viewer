@@ -3,7 +3,6 @@ import { useSessionStore } from '../stores/sessionStore'
 import { useUIStore } from '../stores/uiStore'
 import { ingestFile } from '../features/file-ingest/ingest'
 import { SceneCanvas } from '../three/SceneCanvas'
-import { VideoPane } from '../components/VideoPane'
 import { PawFloorMap } from '../components/PawFloorMap'
 import { ControlsBar } from '../components/ControlsBar'
 import { ParameterPanel } from '../components/ParameterPanel'
@@ -56,20 +55,21 @@ export function Layout() {
       <div className="main-area">
         <div className="canvas-container" id="canvas-container">
           {/*
-            SceneCanvas stays mounted in every mode: PlaybackEngine drives the
-            master clock from useFrame inside it, and useVideoSync decodes the
-            frame VideoPane blits. In split mode it is parked off-view rather
-            than unmounted, so playback and decoding keep running.
+            One scene, one video path. In split mode SceneCanvas simply shares
+            the row with the floor map rather than being replaced by a second
+            renderer — video and landmarks keep coming from Frustum/Skeleton2D,
+            and PlaybackEngine keeps driving the clock from inside it.
           */}
-          <div className={viewMode === 'split' ? 'scene-parked' : 'scene-live'}>
-            <SceneCanvas />
-          </div>
-          {viewMode === 'split' && (
-            <div className="split-view">
-              <VideoPane />
-              <PawFloorMap />
+          <div className={viewMode === 'split' ? 'split-view' : 'scene-live'}>
+            <div className="split-pane">
+              <SceneCanvas />
             </div>
-          )}
+            {viewMode === 'split' && (
+              <div className="split-pane">
+                <PawFloorMap />
+              </div>
+            )}
+          </div>
           <HUD />
           {hasData && (
             <button className="btn-inspect" title="Inspect files" onClick={() => {

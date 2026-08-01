@@ -114,8 +114,18 @@ export function PawFloorMap() {
       const br = proj.toScreen(bx + half, bz + half)
       ctx.strokeStyle = '#4488ff'
       ctx.setLineDash([4, 4])
-      ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y)
+      ctx.strokeRect(
+        Math.min(tl.x, br.x), Math.min(tl.y, br.y),
+        Math.abs(br.x - tl.x), Math.abs(br.y - tl.y),
+      )
       ctx.setLineDash([])
+      ctx.fillStyle = '#4488ff'
+      ctx.font = '10px ui-monospace, monospace'
+      ctx.fillText(
+        `game board ${board.boardSizeM.toFixed(2)} m`,
+        Math.min(tl.x, br.x) + 4,
+        Math.min(tl.y, br.y) - 4,
+      )
     }
 
     // AR plane outlines at the current moment.
@@ -211,7 +221,9 @@ export function PawFloorMap() {
       ctx.lineWidth = 2
       ctx.beginPath()
       ctx.moveTo(c.x, c.y)
-      ctx.lineTo(c.x + (fx / len) * 22, c.y + (fz / len) * 22)
+      // Screen y runs opposite world z on this map, so the forward component
+      // is subtracted rather than added.
+      ctx.lineTo(c.x + (fx / len) * 22, c.y - (fz / len) * 22)
       ctx.stroke()
       ctx.fillStyle = '#ff6644'
       ctx.beginPath(); ctx.arc(c.x, c.y, 4, 0, Math.PI * 2); ctx.fill()
@@ -220,7 +232,7 @@ export function PawFloorMap() {
     // Scale note.
     ctx.fillStyle = '#777'
     ctx.font = '10px ui-monospace, monospace'
-    ctx.fillText(`1 m grid · ${(1 / proj.metresPerPx).toFixed(0)} px/m · world-fixed`, 8, h - 8)
+    ctx.fillText(`1 m grid · ${(1 / proj.metresPerPx).toFixed(0)} px/m · world-fixed · +z up, +x right`, 8, h - 8)
   }, [
     bounds, analysis, pawFloorFrameMap, frames, frameIdx,
     confidenceThreshold, pawTrailSeconds, arPlaneEvents, board,

@@ -1186,7 +1186,7 @@ body {
   display: none;
 }
 
-/* ── Split view: video | world-fixed floor map ─────────────────────── */
+/* ── Split view: the 3D scene beside a world-fixed floor map ───────── */
 
 .scene-live {
   position: absolute;
@@ -1194,22 +1194,10 @@ body {
 }
 
 /*
-  Parked, not unmounted: PlaybackEngine's useFrame is the master clock and
-  useVideoSync decodes the frame VideoPane draws, so the canvas must keep
-  rendering. Kept on-screen at 1px (rather than display:none) so the browser
-  does not throttle its rAF loop.
+  Both panes are real, visible children — no parked canvas. SceneCanvas keeps
+  rendering video and landmarks through Frustum/Skeleton2D, so there is exactly
+  one video path, and PlaybackEngine keeps driving the clock from inside it.
 */
-.scene-parked {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  left: 0;
-  bottom: 0;
-  opacity: 0.01;
-  pointer-events: none;
-  overflow: hidden;
-}
-
 .split-view {
   position: absolute;
   inset: 0;
@@ -1218,16 +1206,16 @@ body {
   background: #000;
 }
 
-.split-view > * {
+.split-pane {
   flex: 1 1 50%;
   min-width: 0;
   height: 100%;
-  display: block;
+  position: relative;
 }
 
-canvas.video-pane,
 canvas.paw-floor-map {
   width: 100%;
   height: 100%;
+  display: block;
   background: #0e0e0e;
 }

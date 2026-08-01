@@ -42,7 +42,12 @@ export function floorBounds(points: Array<{ x: number; z: number }>): FloorBound
 }
 
 /**
- * Top-down world→screen mapping: world +x to the right, world +z downward.
+ * Top-down world→screen mapping: world +x to the right, world +z **upward**.
+ *
+ * The z axis is inverted against screen y on purpose. The phone points along
+ * +z, so with z increasing upward the operator sits at the bottom of the map
+ * looking up it — the same way you would read a plan of the room you are
+ * standing in.
  *
  * Depends only on session-wide bounds and the canvas size — never on the
  * current camera pose. That is what keeps the floor stable while the phone
@@ -73,7 +78,7 @@ export function makeFloorProjection(
     metresPerPx: 1 / pxPerM,
     toScreen: (x: number, z: number) => ({
       x: offsetX + (x - bounds.minX) * pxPerM,
-      y: offsetY + (z - bounds.minZ) * pxPerM,
+      y: offsetY + (bounds.maxZ - z) * pxPerM,
     }),
   }
 }
