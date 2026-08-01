@@ -4,6 +4,7 @@ import { findNearestPoseModels } from '../features/viewer/frame-utils'
 import { useUIStore } from '../stores/uiStore'
 import { visibleTimeForFrameMs } from '../features/viewer/video-timing'
 import { landmarkSpaceFromMeta, VISION_NATIVE } from '../features/viewer/unproject'
+import { PawFloorVerdict } from './PawFloorVerdict'
 
 export function HUD() {
   const frames = useSessionStore(s => s.frames)
@@ -74,6 +75,7 @@ export function HUD() {
       {landmarkCount > 0 && (
         <div>Landmarks: <span className="val">{landmarkCount}</span></div>
       )}
+      <PawFloorVerdict />
     </div>
   )
 }
