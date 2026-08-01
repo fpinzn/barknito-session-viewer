@@ -75,9 +75,11 @@ export function PawFloorVerdict() {
         {q.baseline.qualified ? '' : ' — lift estimate unavailable'}
       </div>
       {q.reasons.length > 0 && (
-        <ul style={{ margin: '4px 0 0', paddingLeft: 16, color: '#bbb' }}>
-          {q.reasons.map(r => <li key={r}>{r}</li>)}
-        </ul>
+        // Kept to one line and moved behind a tooltip: spelled out in full this
+        // block grew tall enough to collide with the parameter panel.
+        <div style={{ color: '#bbb', pointerEvents: 'auto', cursor: 'help' }} title={q.reasons.join('\n')}>
+          {q.reasons.length} reason{q.reasons.length === 1 ? '' : 's'} — hover for detail
+        </div>
       )}
     </div>
   )

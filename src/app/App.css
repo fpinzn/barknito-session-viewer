@@ -123,6 +123,11 @@ body {
   line-height: 1.6;
   pointer-events: none;
   color: #777;
+  /* Leave room for .param-panel, which is anchored bottom-left in the same
+     column; without this the HUD grows into it and the text collides. */
+  max-height: calc(100% - 360px);
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .hud .val {
@@ -373,7 +378,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  background: rgba(20, 20, 20, 0.85);
+  background: #141414;
   padding: 8px 10px;
   border-radius: 6px;
   border: 1px solid #333;
