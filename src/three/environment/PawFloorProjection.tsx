@@ -30,8 +30,6 @@ const PAW_COLORS: Record<PawName, number> = {
   right_back_paw: 0xffcc66,
 }
 
-/** Trailing track window, in milliseconds. */
-const TRACK_WINDOW_MS = 2000
 /** Pixels of landmark error the hit disc represents, drawn to scale. */
 const DISC_PIXELS = 15
 /** Floor on the disc radius so a very steep ray still leaves something visible. */
@@ -63,6 +61,7 @@ export function PawFloorProjection() {
   const showPawFloor = useUIStore(s => s.showPawFloor)
   const showPawLift = useUIStore(s => s.showPawLift)
   const confidenceThreshold = useUIStore(s => s.confidenceThreshold)
+  const pawTrailSeconds = useUIStore(s => s.pawTrailSeconds)
   const pawFloorFrameMap = useSessionStore(s => s.pawFloorFrameMap)
   const frames = useSessionStore(s => s.frames)
   const frameIdx = usePlaybackStore(s => s.currentFrameIdx)
@@ -156,13 +155,14 @@ export function PawFloorProjection() {
 
     // Trailing tracks, one segment per step so opacity can fall off with age.
     // Gated on the same `Conf` slider the skeleton uses for landmarks.
+    const trackWindowMs = Math.max(100, pawTrailSeconds * 1000)
     const tracks = collectTrackSamples(
-      pawFloorFrameMap, current.ts, TRACK_WINDOW_MS, confidenceThreshold,
+      pawFloorFrameMap, current.ts, trackWindowMs, confidenceThreshold,
       analysis.quality.baseline,
     )
     for (const [name, samples] of tracks) {
       for (let i = 1; i < samples.length; i++) {
-        const opacity = trackOpacityForAge(current.ts - samples[i].ts, TRACK_WINDOW_MS)
+        const opacity = trackOpacityForAge(current.ts - samples[i].ts, trackWindowMs)
         if (opacity <= 0.02) continue
 
         // Across a detection dropout the route is simply unobserved — joining
@@ -308,7 +308,7 @@ export function PawFloorProjection() {
     }
 
     return elements.length > 0 ? <group>{elements}</group> : null
-  }, [showPawFloor, showPawLift, confidenceThreshold, analysis, pawFloorFrameMap, frames, frameIdx])
+  }, [showPawFloor, showPawLift, confidenceThreshold, pawTrailSeconds, analysis, pawFloorFrameMap, frames, frameIdx])
 
   if (!scene) return null
 

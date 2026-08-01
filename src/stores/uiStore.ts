@@ -7,6 +7,7 @@ interface UIState {
   showARPlanes: boolean
   showPawFloor: boolean
   showPawLift: boolean
+  pawTrailSeconds: number
   confidenceThreshold: number
   pointDensity: number
   depthZScale: number
@@ -24,6 +25,7 @@ interface UIState {
   setShowARPlanes: (v: boolean) => void
   setShowPawFloor: (v: boolean) => void
   setShowPawLift: (v: boolean) => void
+  setPawTrailSeconds: (v: number) => void
   setConfidenceThreshold: (v: number) => void
   setPointDensity: (v: number) => void
   setDepthZScale: (v: number) => void
@@ -45,6 +47,7 @@ const initialState = {
   showPawFloor: true,
   // Derived, not measured — must be opted into.
   showPawLift: false,
+  pawTrailSeconds: 2,
   confidenceThreshold: 0.3,
   pointDensity: 4,
   depthZScale: 1.0,
@@ -66,6 +69,7 @@ export const useUIStore = create<UIState>((set) => ({
   setShowARPlanes: (v) => set({ showARPlanes: v }),
   setShowPawFloor: (v) => set({ showPawFloor: v }),
   setShowPawLift: (v) => set({ showPawLift: v }),
+  setPawTrailSeconds: (v) => set({ pawTrailSeconds: v }),
   setConfidenceThreshold: (v) => set({ confidenceThreshold: v }),
   setPointDensity: (v) => set({ pointDensity: v }),
   setDepthZScale: (v) => set({ depthZScale: v }),

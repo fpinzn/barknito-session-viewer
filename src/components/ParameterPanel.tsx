@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useUIStore } from '../stores/uiStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { confidenceFloors, PAW_SOURCE_ID } from '../features/paw-floor/confidenceFloor'
+import { trailBoundsSeconds } from '../features/paw-floor/trail'
 
 export function ParameterPanel() {
   const hasData = useSessionStore(s => s.frames.length > 0)
@@ -20,6 +21,15 @@ export function ParameterPanel() {
   const vidAlpha = useUIStore(s => s.videoAlpha)
   const ptAlpha = useUIStore(s => s.pointAlpha)
   const skelOffset = useUIStore(s => s.skelMsOffset)
+  const pawTrailSeconds = useUIStore(s => s.pawTrailSeconds)
+  const frames = useSessionStore(s => s.frames)
+
+  const trailBounds = useMemo(() => {
+    const span = frames.length > 1 ? frames[frames.length - 1].ts - frames[0].ts : 0
+    return trailBoundsSeconds(span)
+  }, [frames])
+
+  const trail = Math.min(Math.max(pawTrailSeconds, trailBounds.min), trailBounds.max)
 
   const floors = useMemo(
     () => confidenceFloors(poseEvents, pawFloorFrameMap),
@@ -79,6 +89,24 @@ export function ParameterPanel() {
         <input type="checkbox" id="chk-pawlift" checked={showPawLift}
           onChange={e => useUIStore.getState().setShowPawLift(e.target.checked)} />
         <label htmlFor="chk-pawlift" title="Derived from stance geometry, not measured. Only drawn when the session's stance baseline is stable.">Paw lift (derived)</label>
+      </div>
+
+      <div
+        className="slider-group"
+        title={`How much paw history to draw, in seconds.\n\nDrag to ${trailBounds.max.toFixed(0)} s to show the whole session.\nApplies to both the 3D scene and the floor map.`}
+      >
+        <label>Trail</label>
+        <input
+          type="range"
+          min={trailBounds.min}
+          max={trailBounds.max}
+          step="0.5"
+          value={trail}
+          onChange={e => useUIStore.getState().setPawTrailSeconds(parseFloat(e.target.value))}
+        />
+        <span className="sval">
+          {trail >= trailBounds.max ? 'all' : `${trail.toFixed(1)}s`}
+        </span>
       </div>
 
       <div className="slider-group" title={confTooltip}>
