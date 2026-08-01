@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { collectTrackSamples } from '../tracks'
+import { collectTrackSamples, isContinuous } from '../tracks'
 import type { PawFloorFrame, PawHit, PawName } from '../../../types'
 import type { StanceBaseline } from '../stance'
 
@@ -20,6 +20,31 @@ function build(frames: PawFloorFrame[]): Map<number, PawFloorFrame> {
   frames.forEach((f, i) => m.set(i, f))
   return m
 }
+
+describe('isContinuous', () => {
+  it('joins samples one frame apart', () => {
+    expect(isContinuous({ ts: 6502 }, { ts: 6536 })).toBe(true)
+  })
+
+  it('joins across a few dropped frames', () => {
+    expect(isContinuous({ ts: 0 }, { ts: 100 })).toBe(true)
+  })
+
+  it('refuses to join across a real dropout', () => {
+    // 20260731-174207-801b: left_front_paw unseen for 733 ms between frames
+    // 1945 and 1989, reappearing 71 cm away. Joining these invents a stride.
+    expect(isContinuous({ ts: 6536 }, { ts: 7269 })).toBe(false)
+  })
+
+  it('treats the threshold as inclusive', () => {
+    expect(isContinuous({ ts: 0 }, { ts: 150 })).toBe(true)
+    expect(isContinuous({ ts: 0 }, { ts: 151 })).toBe(false)
+  })
+
+  it('honours an explicit threshold', () => {
+    expect(isContinuous({ ts: 0 }, { ts: 300 }, 400)).toBe(true)
+  })
+})
 
 describe('collectTrackSamples', () => {
   it('keeps samples at or above the confidence threshold', () => {

@@ -4,6 +4,7 @@ import {
   trackOpacityForAge,
   planeMedianY,
   planeDriftM,
+  trackSegmentColor,
 } from '../visuals'
 import type { PawFloorFrame, PawHit, PawName } from '../../../types'
 
@@ -39,6 +40,32 @@ describe('trackOpacityForAge', () => {
   it('clamps outside the window', () => {
     expect(trackOpacityForAge(5000, 2000)).toBe(0)
     expect(trackOpacityForAge(-10, 2000)).toBe(1)
+  })
+})
+
+describe('trackSegmentColor', () => {
+  const PAW = 0x6699ff
+  const clean = { suspectReason: null } as const
+  const collapse = { suspectReason: 'collapse' } as const
+  const jerk = { suspectReason: 'jerk' } as const
+
+  it('uses the paw colour when both samples are clean', () => {
+    expect(trackSegmentColor(clean, clean, PAW)).toBe(PAW)
+  })
+
+  it('flags the segment when either endpoint collapsed', () => {
+    expect(trackSegmentColor(collapse, clean, PAW)).toBe(0xdd4444)
+    expect(trackSegmentColor(clean, collapse, PAW)).toBe(0xdd4444)
+  })
+
+  it('flags the segment when either endpoint jerked', () => {
+    expect(trackSegmentColor(jerk, clean, PAW)).toBe(0xff8800)
+    expect(trackSegmentColor(clean, jerk, PAW)).toBe(0xff8800)
+  })
+
+  it('ranks collapse above jerk', () => {
+    // Collapse is corroborated by a second paw, so it is the stronger claim.
+    expect(trackSegmentColor(collapse, jerk, PAW)).toBe(0xdd4444)
   })
 })
 

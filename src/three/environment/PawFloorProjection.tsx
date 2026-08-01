@@ -8,14 +8,17 @@ import { usePawFloorAnalysis, rayColorHex } from '../../features/paw-floor/usePa
 import { rayGeometry, correctForLift, type Vec3 } from '../../features/paw-floor/geometry'
 import { fitSingleLift } from '../../features/paw-floor/lift'
 import { mirrorAboutCamera } from '../../features/paw-floor/renderSpace'
-import { collectTrackSamples } from '../../features/paw-floor/tracks'
+import { collectTrackSamples, isContinuous } from '../../features/paw-floor/tracks'
 import { formatPawTooltip, type PawTooltipInput } from '../../features/paw-floor/tooltip'
 import {
   pairDeviationColorHex,
   trackOpacityForAge,
   planeMedianY,
   planeDriftM,
+  trackSegmentColor,
   PLANE_DRIFT_TINT_M,
+  COLLAPSE_COLOR,
+  JERK_COLOR,
 } from '../../features/paw-floor/visuals'
 import type { PawName, PawFloorFrame } from '../../types'
 import type { PawPositions } from '../../features/paw-floor/stance'
@@ -162,26 +165,32 @@ export function PawFloorProjection() {
         const opacity = trackOpacityForAge(current.ts - samples[i].ts, TRACK_WINDOW_MS)
         if (opacity <= 0.02) continue
 
-        // Break the line across a contradicted sample instead of drawing a
-        // phantom stride into and out of it.
-        if (samples[i].suspect || samples[i - 1].suspect) {
-          if (samples[i].suspect) {
-            const s = samples[i].world
-            elements.push(
-              <mesh
-                key={`suspect-${name}-${i}`}
-                position={R({ x: s.x, y: s.y + 0.004, z: s.z })}
-                rotation={[-Math.PI / 2, 0, 0]}
-              >
-                <ringGeometry args={[0.02, 0.03, 20]} />
-                <meshBasicMaterial
-                  color={samples[i].suspectReason === 'jerk' ? 0xff8800 : 0xdd4444}
-                  transparent opacity={opacity * 0.8} side={THREE.DoubleSide} />
-              </mesh>,
-            )
-          }
-          continue
+        // Across a detection dropout the route is simply unobserved — joining
+        // the endpoints would draw a stride the dog may never have taken.
+        const continuous = isContinuous(samples[i - 1], samples[i])
+
+        // A contradicted stretch is drawn in its flag colour rather than
+        // dropped, so it reads as part of the trace you can follow and inspect.
+        const flagged = samples[i].suspect || samples[i - 1].suspect
+        const segColor = trackSegmentColor(samples[i - 1], samples[i], PAW_COLORS[name])
+
+        if (samples[i].suspect) {
+          const s = samples[i].world
+          elements.push(
+            <mesh
+              key={`suspect-${name}-${i}`}
+              position={R({ x: s.x, y: s.y + 0.004, z: s.z })}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
+              <ringGeometry args={[0.02, 0.03, 20]} />
+              <meshBasicMaterial
+                color={samples[i].suspectReason === 'jerk' ? JERK_COLOR : COLLAPSE_COLOR}
+                transparent opacity={opacity * 0.8} side={THREE.DoubleSide} />
+            </mesh>,
+          )
         }
+
+        if (!continuous) continue
 
         const a = samples[i - 1].world
         const b = samples[i].world
@@ -192,10 +201,13 @@ export function PawFloorProjection() {
               R({ x: a.x, y: a.y + 0.001, z: a.z }),
               R({ x: b.x, y: b.y + 0.001, z: b.z }),
             ]}
-            color={PAW_COLORS[name]}
+            color={segColor}
             lineWidth={TRACK_LINE_WIDTH}
             transparent
-            opacity={opacity * 0.6}
+            opacity={opacity * (flagged ? 0.85 : 0.6)}
+            dashed={flagged}
+            dashSize={0.02}
+            gapSize={0.02}
           />,
         )
       }

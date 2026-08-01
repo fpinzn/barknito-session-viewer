@@ -4,6 +4,27 @@ import { detectCollapsedPaws } from './collapse'
 import { detectJerkSpikes } from './jerk'
 import type { PawPositions, StanceBaseline } from './stance'
 
+/**
+ * Longest gap between consecutive samples that still counts as one continuous
+ * path, in milliseconds.
+ *
+ * Samples arrive every 17–34 ms at the median, so 150 ms allows roughly four
+ * dropped frames. Beyond that the dog's route is simply unobserved and joining
+ * the endpoints invents a stride: on `…-801b` the paw goes unseen for 733 ms
+ * between frames 1945 and 1989 and reappears 71 cm away. Measured gaps run as
+ * long as 19.5 s.
+ */
+export const MAX_TRACK_GAP_MS = 150
+
+/** Whether two consecutive samples are close enough in time to join. */
+export function isContinuous(
+  a: Pick<TrackSample, 'ts'>,
+  b: Pick<TrackSample, 'ts'>,
+  maxGapMs: number = MAX_TRACK_GAP_MS,
+): boolean {
+  return b.ts - a.ts <= maxGapMs
+}
+
 export interface TrackSample {
   ts: number
   /** `Time.frameCount` as stamped by the recorder, for cross-referencing. */

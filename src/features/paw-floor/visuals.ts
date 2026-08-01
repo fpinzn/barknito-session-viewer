@@ -1,4 +1,9 @@
 import type { PawFloorFrame } from '../../types'
+import type { TrackSample } from './tracks'
+
+/** Flag colours, shared by the track segments and their point markers. */
+export const COLLAPSE_COLOR = 0xdd4444
+export const JERK_COLOR = 0xff8800
 
 /** Pair-distance deviation bands, in metres. */
 const DEVIATION_GOOD_M = 0.02
@@ -44,4 +49,22 @@ export function planeMedianY(pawFrames: Map<number, PawFloorFrame>): number | nu
 
 export function planeDriftM(currentY: number, medianY: number): number {
   return Math.abs(currentY - medianY)
+}
+
+/**
+ * Colour for the track segment between two samples.
+ *
+ * A segment touching a flagged sample is drawn in that flag's colour rather
+ * than the paw's, so a contradicted stretch stands out as part of the trace
+ * instead of vanishing from it. Collapse outranks jerk: it is the stronger
+ * claim, since it is corroborated by a second paw.
+ */
+export function trackSegmentColor(
+  a: Pick<TrackSample, 'suspectReason'>,
+  b: Pick<TrackSample, 'suspectReason'>,
+  pawColor: number,
+): number {
+  if (a.suspectReason === 'collapse' || b.suspectReason === 'collapse') return COLLAPSE_COLOR
+  if (a.suspectReason === 'jerk' || b.suspectReason === 'jerk') return JERK_COLOR
+  return pawColor
 }
