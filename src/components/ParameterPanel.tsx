@@ -8,6 +8,8 @@ export function ParameterPanel() {
   const show2D = useUIStore(s => s.show2DSkeleton)
   const show3D = useUIStore(s => s.show3DSkeleton)
   const showPlanes = useUIStore(s => s.showARPlanes)
+  const showPawFloor = useUIStore(s => s.showPawFloor)
+  const showPawLift = useUIStore(s => s.showPawLift)
   const confidence = useUIStore(s => s.confidenceThreshold)
   const density = useUIStore(s => s.pointDensity)
   const zScale = useUIStore(s => s.depthZScale)
@@ -38,6 +40,16 @@ export function ParameterPanel() {
         <input type="checkbox" id="chk-planes" checked={showPlanes}
           onChange={e => useUIStore.getState().setShowARPlanes(e.target.checked)} />
         <label htmlFor="chk-planes">AR planes</label>
+      </div>
+      <div className="check-group">
+        <input type="checkbox" id="chk-pawfloor" checked={showPawFloor}
+          onChange={e => useUIStore.getState().setShowPawFloor(e.target.checked)} />
+        <label htmlFor="chk-pawfloor">Paw floor</label>
+      </div>
+      <div className="check-group">
+        <input type="checkbox" id="chk-pawlift" checked={showPawLift}
+          onChange={e => useUIStore.getState().setShowPawLift(e.target.checked)} />
+        <label htmlFor="chk-pawlift" title="Derived from stance geometry, not measured. Only drawn when the session's stance baseline is stable.">Paw lift (derived)</label>
       </div>
 
       <div className="slider-group">
