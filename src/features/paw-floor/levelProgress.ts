@@ -46,11 +46,17 @@ export function levelHeader(
 /**
  * The action in progress at a given moment.
  *
- * `RoundStarted.roundNumber` is 1-based and maps one-to-one onto
- * `actionSequence` — measured across four bundles, where a completed session's
- * final `roundNumber` equals the sequence length exactly. That is a more direct
- * signal than counting completions, which arrive as `BehaviorCompleted` for
- * boop actions but `DogEnteredCell` for pass-through ones.
+ * Two recorder schemas are in the wild and both are supported:
+ *
+ * - Newer builds emit `ActionStarted` carrying `actionId`, which matches an
+ *   entry's `id` in `actionSequence` directly.
+ * - Older builds emit `RoundStarted` carrying a 1-based `roundNumber` that maps
+ *   one-to-one onto the sequence — verified on four bundles, where a completed
+ *   session's final `roundNumber` equals the sequence length exactly.
+ *
+ * Counting completions would work for neither cleanly: they arrive as
+ * `BehaviorCompleted` for boop actions but `DogEnteredCell` for pass-through
+ * ones, and the newer schema drops `BehaviorCompleted` altogether.
  */
 export function currentAction(
   config: unknown,
@@ -61,21 +67,26 @@ export function currentAction(
   const seq = cfg?.actionSequence
   if (!Array.isArray(seq) || seq.length === 0) return null
 
-  let roundNumber: number | null = null
+  let index: number | null = null
   for (const e of events) {
-    if (e.type !== 'RoundStarted' || e.timestampMs > ts) continue
-    if (typeof e.roundNumber === 'number') roundNumber = e.roundNumber
-  }
-  if (roundNumber === null) return null
+    if (e.timestampMs > ts) continue
 
-  const index = roundNumber - 1
-  if (index < 0 || index >= seq.length) return null
+    if (e.type === 'ActionStarted' && typeof e.actionId === 'string') {
+      const found = seq.findIndex(a => (a as { id?: unknown }).id === e.actionId)
+      if (found >= 0) index = found
+      continue
+    }
+    if (e.type === 'RoundStarted' && typeof e.roundNumber === 'number') {
+      index = e.roundNumber - 1
+    }
+  }
+  if (index === null || index < 0 || index >= seq.length) return null
 
   const action = seq[index] as { id?: unknown; type?: unknown; lure?: unknown }
   return {
     index,
     total: seq.length,
-    id: typeof action.id === 'string' ? action.id : `#${roundNumber}`,
+    id: typeof action.id === 'string' ? action.id : `#${index + 1}`,
     type: typeof action.type === 'string' ? action.type : 'unknown',
     lure: action.lure === true,
   }

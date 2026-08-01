@@ -303,7 +303,7 @@ export function PawFloorMap() {
           color: '#44dd88',
         })
       } else if (level) {
-        lines.push({ text: 'no round started', color: '#777' })
+        lines.push({ text: 'no action started yet', color: '#777' })
       }
 
       ctx.font = '11px ui-monospace, monospace'

@@ -101,11 +101,17 @@ export function boardGeometry(
   }
 }
 
-/** The cell the game had active at a given moment, from the last RoundStarted. */
+/**
+ * The cell the game had active at a given moment.
+ *
+ * Newer recorder builds emit `ActionStarted`, older ones `RoundStarted`; both
+ * carry `activeCellPos`, so both are accepted.
+ */
 export function activeCellAt(events: GameEvent[], ts: number): [number, number] | null {
   let best: [number, number] | null = null
   for (const e of events) {
-    if (e.type !== 'RoundStarted' || e.timestampMs > ts) continue
+    if (e.type !== 'ActionStarted' && e.type !== 'RoundStarted') continue
+    if (e.timestampMs > ts) continue
     const pos = e.activeCellPos as number[] | undefined
     if (!pos || pos.length < 2) continue
     best = [pos[0], pos[1]]

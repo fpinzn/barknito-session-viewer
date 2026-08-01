@@ -71,3 +71,32 @@ describe('currentAction', () => {
     expect(currentAction(null, rounds, 2000)).toBeNull()
   })
 })
+
+describe('currentAction — ActionStarted schema', () => {
+  // Recorded by newer builds, e.g. 20260801-134725-c2f6, which emit
+  // ActionStarted with an actionId and no RoundStarted at all.
+  const actions: GameEvent[] = [
+    { type: 'ActionStarted', timestampMs: 4271, actionId: 'B1', activeCellPos: [0, 0] },
+    { type: 'ActionStarted', timestampMs: 11823, actionId: 'B2', activeCellPos: [1, 0] },
+    { type: 'ActionStarted', timestampMs: 12557, actionId: 'B3', activeCellPos: [0, 1] },
+  ]
+
+  it('resolves the action by id', () => {
+    expect(currentAction(config, actions, 4271)).toMatchObject({ index: 0, id: 'B1' })
+    expect(currentAction(config, actions, 12000)).toMatchObject({ index: 1, id: 'B2' })
+    expect(currentAction(config, actions, 30_000)).toMatchObject({ index: 2, id: 'B3' })
+  })
+
+  it('is null before the first action', () => {
+    expect(currentAction(config, actions, 4270)).toBeNull()
+  })
+
+  it('ignores an actionId absent from the sequence', () => {
+    const stray: GameEvent[] = [{ type: 'ActionStarted', timestampMs: 0, actionId: 'ZZ' }]
+    expect(currentAction(config, stray, 10)).toBeNull()
+  })
+
+  it('carries the action type from the config', () => {
+    expect(currentAction(config, actions, 4271)!.type).toBe('targetBoop')
+  })
+})
