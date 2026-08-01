@@ -1,5 +1,7 @@
 import { create } from 'zustand'
-import type { Intrinsics, GameEvent, ARPlaneEvent, SessionMeta, Landmark } from '../types'
+import type {
+  Intrinsics, GameEvent, ARPlaneEvent, SessionMeta, Landmark, PawFloorFrame,
+} from '../types'
 import { rebuildFrameList, type Frame, type PoseEvent } from '../features/viewer/frame-utils'
 
 interface PoseFrameEntry {
@@ -20,6 +22,7 @@ interface SessionState {
   poseEvents: PoseEvent[]
   poseFrameMap: Map<number, PoseFrameEntry> | null
   sensorFrameMap: Map<number, SensorEntry> | null
+  pawFloorFrameMap: Map<number, PawFloorFrame> | null
 
   // JSON data
   gameEvents: GameEvent[]
@@ -38,6 +41,7 @@ interface SessionState {
   // Actions
   loadPoseData: (frameMap: Map<number, PoseFrameEntry>, models: string[]) => void
   loadSensorData: (frameMap: Map<number, SensorEntry>) => void
+  loadPawFloorData: (frameMap: Map<number, PawFloorFrame>) => void
   loadIntrinsics: (intrinsics: Intrinsics) => void
   loadGameEvents: (events: GameEvent[]) => void
   loadARPlaneEvents: (events: ARPlaneEvent[]) => void
@@ -57,6 +61,7 @@ const initialState = {
   poseEvents: [] as PoseEvent[],
   poseFrameMap: null as Map<number, PoseFrameEntry> | null,
   sensorFrameMap: null as Map<number, SensorEntry> | null,
+  pawFloorFrameMap: null as Map<number, PawFloorFrame> | null,
   gameEvents: [] as GameEvent[],
   arPlaneEvents: [] as ARPlaneEvent[],
   sessionMeta: null as SessionMeta | null,
@@ -91,6 +96,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const result = rebuild(updated)
     set({ sensorFrameMap: frameMap, ...result })
   },
+
+  // Not a timeline source — `frames` stays driven by sensor/pose data, so this
+  // deliberately does not call rebuild().
+  loadPawFloorData: (frameMap) => set({ pawFloorFrameMap: frameMap }),
 
   loadIntrinsics: (intrinsics) => set({ intrinsics }),
   loadGameEvents: (events) => set({ gameEvents: events }),

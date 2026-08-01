@@ -1,5 +1,5 @@
 import { useSessionStore } from '../../stores/sessionStore'
-import { detectCSVType, parsePoseCSV, parseSensorCSV, parseJSON } from './parsers'
+import { detectCSVType, parsePoseCSV, parseSensorCSV, parsePawFloorCSV, parseJSON } from './parsers'
 import { decompressGz } from './decompress'
 import type { ARPlaneEvent } from '../../types'
 
@@ -51,6 +51,11 @@ export function ingestText(text: string, filename: string): void {
     case 'sensor': {
       const { frameMap } = parseSensorCSV(text)
       store.loadSensorData(frameMap)
+      break
+    }
+    case 'pawFloor': {
+      const frameMap = parsePawFloorCSV(text)
+      store.loadPawFloorData(frameMap)
       break
     }
     default:
