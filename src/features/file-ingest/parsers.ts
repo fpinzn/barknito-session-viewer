@@ -1,8 +1,13 @@
-import type { Landmark, Intrinsics, GameEvent, SessionMeta } from '../../types'
+import type {
+  Landmark, Intrinsics, GameEvent, SessionMeta,
+  PawName, PawHit, PawFloorFrame,
+} from '../../types'
 
 // ─── CSV Detection ──────────────────────────────────────────────────
 
-export function detectCSVType(header: string): 'pose' | 'sensor' | 'unknown' {
+export function detectCSVType(header: string): 'pose' | 'sensor' | 'pawFloor' | 'unknown' {
+  // Checked first: the paw CSV also carries `model_id`.
+  if (header.includes('paw_name') && header.includes('plane_id')) return 'pawFloor'
   if (header.includes('landmark') && header.includes('model_id')) return 'pose'
   if (header.includes('cam_pos_x') && header.includes('cam_rot_x')) return 'sensor'
   return 'unknown'
@@ -168,4 +173,62 @@ export function parseJSON(text: string, filename: string): ParseJSONResult {
   }
 
   return { type: 'unknown', data: json }
+}
+
+// ─── Paw Floor Projection CSV ───────────────────────────────────────
+
+const PAW_NAMES: readonly string[] = [
+  'left_front_paw', 'right_front_paw', 'left_back_paw', 'right_back_paw',
+]
+
+/** Parse an optional float column; empty string yields null, never NaN. */
+function optFloat(raw: string | undefined): number | null {
+  const t = (raw ?? '').trim()
+  if (t === '') return null
+  const v = parseFloat(t)
+  return Number.isFinite(v) ? v : null
+}
+
+export function parsePawFloorCSV(text: string): Map<number, PawFloorFrame> {
+  const lines = text.trim().split('\n')
+  const header = lines[0].replace(/^﻿/, '').split(',').map(h => h.trim())
+  const ci: Record<string, number> = {}
+  header.forEach((h, i) => ci[h] = i)
+
+  const frameMap = new Map<number, PawFloorFrame>()
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',')
+    if (cols.length < header.length) continue
+
+    const pawName = cols[ci['paw_name']].trim()
+    if (!PAW_NAMES.includes(pawName)) continue
+
+    const frameId = parseInt(cols[ci['frame_id']])
+    const ts = parseInt(cols[ci['timestamp_ms']])
+    if (!Number.isFinite(frameId) || !Number.isFinite(ts)) continue
+
+    if (!frameMap.has(frameId)) frameMap.set(frameId, { ts, paws: new Map() })
+
+    const hit = cols[ci['hit']].trim() === '1'
+    const wx = optFloat(cols[ci['world_x']])
+    const wy = optFloat(cols[ci['world_y']])
+    const wz = optFloat(cols[ci['world_z']])
+    const planeId = (cols[ci['plane_id']] ?? '').trim()
+
+    const entry: PawHit = {
+      conf: parseFloat(cols[ci['paw_confidence']]),
+      screenX: parseFloat(cols[ci['screen_x_px']]),
+      screenY: parseFloat(cols[ci['screen_y_px']]),
+      hit,
+      planeId: planeId === '' ? null : planeId,
+      world: hit && wx !== null && wy !== null && wz !== null
+        ? { x: wx, y: wy, z: wz }
+        : null,
+    }
+
+    frameMap.get(frameId)!.paws.set(pawName as PawName, entry)
+  }
+
+  return frameMap
 }

@@ -71,3 +71,32 @@ export interface SkeletonDef {
   legend: Array<{ label: string; color: [number, number, number] }>
   label: string
 }
+
+export type PawName =
+  | 'left_front_paw'
+  | 'right_front_paw'
+  | 'left_back_paw'
+  | 'right_back_paw'
+
+/**
+ * One paw sample from `paw_floor_projection_raycasting_v1`.
+ *
+ * `world` is the raycast's intersection with a horizontal AR plane, so its `y`
+ * is the plane's height, never a measured paw height. The CSV's `paw_depth_m`
+ * column is deliberately not represented here: it is empty in every row the
+ * recorder has ever written, because Vision's animal-pose request does not
+ * populate the depth it is sourced from.
+ */
+export interface PawHit {
+  conf: number
+  screenX: number
+  screenY: number
+  hit: boolean
+  planeId: string | null
+  world: { x: number; y: number; z: number } | null
+}
+
+export interface PawFloorFrame {
+  ts: number
+  paws: Map<PawName, PawHit>
+}

@@ -1,0 +1,8 @@
+﻿timestamp_ms,frame_id,model_id,model_version,method,paw_name,paw_confidence,paw_depth_m,screen_x_px,screen_y_px,hit,plane_id,world_x,world_y,world_z
+3001,5138,paw_floor_projection_raycasting_v1,1.0.0,raycasting,left_front_paw,0.7788,,1114.0690,1646.5660,0,,,,
+3001,5138,paw_floor_projection_raycasting_v1,1.0.0,raycasting,right_front_paw,0.7871,,976.0073,1754.2270,0,,,,
+3584,5172,paw_floor_projection_raycasting_v1,1.0.0,raycasting,right_front_paw,0.8418,,664.0534,1758.9780,1,9647EAEC68C9D719-F223AA98606FC2BA,0.5296,-1.3214,0.9390
+3584,5172,paw_floor_projection_raycasting_v1,1.0.0,raycasting,left_back_paw,0.4402,,1071.1140,2098.9800,1,9647EAEC68C9D719-F223AA98606FC2BA,1.3806,-1.3214,1.2957
+3634,5175,paw_floor_projection_raycasting_v1,1.0.0,raycasting,left_front_paw,0.8521,,901.2196,1615.0940,1,9647EAEC68C9D719-F223AA98606FC2BA,0.5684,-1.3198,0.7985
+3634,5175,paw_floor_projection_raycasting_v1,1.0.0,raycasting,right_front_paw,0.8413,,758.6536,1709.6090,1,9647EAEC68C9D719-F223AA98606FC2BA,0.4804,-1.3198,0.9502
+3634,5175,paw_floor_projection_raycasting_v1,1.0.0,raycasting,left_back_paw,0.3838,,1181.6750,2042.2180,1,9647EAEC68C9D719-F223AA98606FC2BA,1.3337,-1.3198,1.3158
