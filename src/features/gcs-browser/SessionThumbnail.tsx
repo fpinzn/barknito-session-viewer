@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BUCKETS, gcsGet } from './gcsApi'
+import { getSessionLevel } from './sessionLevel'
 
 const cache = new Map<string, Promise<string | null>>()
 
@@ -38,12 +39,14 @@ export function SessionThumbnail({ env, sessionPath }: Props) {
   const [url, setUrl] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [broken, setBroken] = useState(false)
+  const [level, setLevel] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     setLoaded(false)
     setUrl(null)
     setBroken(false)
+    setLevel(null)
     const bucket = BUCKETS[env]
     if (!bucket) return
     getThumbnail(bucket, sessionPath).then(u => {
@@ -51,19 +54,27 @@ export function SessionThumbnail({ env, sessionPath }: Props) {
       setUrl(u)
       setLoaded(true)
     })
+    getSessionLevel(bucket, sessionPath).then(l => {
+      if (cancelled) return
+      setLevel(l)
+    })
     return () => { cancelled = true }
   }, [env, sessionPath])
 
-  if (url && !broken) {
-    return (
-      <img
-        className="session-thumb"
-        src={url}
-        alt=""
-        draggable={false}
-        onError={() => setBroken(true)}
-      />
-    )
-  }
-  return <div className={`session-thumb placeholder${loaded ? ' missing' : ''}`} />
+  return (
+    <div className="session-thumb-frame">
+      {url && !broken ? (
+        <img
+          className="session-thumb"
+          src={url}
+          alt=""
+          draggable={false}
+          onError={() => setBroken(true)}
+        />
+      ) : (
+        <div className={`session-thumb placeholder${loaded ? ' missing' : ''}`} />
+      )}
+      {level && <div className="session-thumb-level">{level}</div>}
+    </div>
+  )
 }

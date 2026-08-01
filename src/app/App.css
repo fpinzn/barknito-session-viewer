@@ -794,6 +794,29 @@ body {
   pointer-events: none;
 }
 
+.session-thumb-frame {
+  position: relative;
+  display: block;
+}
+
+.session-thumb-level {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Clears the ignore toggle sitting in the same corner. */
+  padding: 5px 34px 7px 8px;
+  background: linear-gradient(rgba(10, 10, 10, 0.85), rgba(10, 10, 10, 0));
+  color: #eee;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .session-thumb {
   display: block;
   width: 100%;
