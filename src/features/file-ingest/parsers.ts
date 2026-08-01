@@ -124,8 +124,11 @@ export type ParseJSONResult =
 export function parseJSON(text: string, filename: string): ParseJSONResult {
   const json = JSON.parse(text)
 
-  // Game config file
-  if (filename.toLowerCase().includes('game_config')) {
+  // Game/level config file. `level_config.json` is what bundles actually ship;
+  // matching only `game_config` sent it to the `unknown` branch, so nothing
+  // ever populated `gameConfig`.
+  const lower = filename.toLowerCase()
+  if (lower.includes('game_config') || lower.includes('level_config')) {
     return { type: 'gameConfig', data: json }
   }
 

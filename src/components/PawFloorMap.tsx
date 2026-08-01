@@ -7,6 +7,7 @@ import { collectTrackSamples, isContinuous } from '../features/paw-floor/tracks'
 import { floorBounds, makeFloorProjection } from '../features/paw-floor/floorMapProjection'
 import { COLLAPSE_COLOR, JERK_COLOR, trackSegmentColor } from '../features/paw-floor/visuals'
 import { boardGeometry, activeCellAt, cellHitsUpTo } from '../features/paw-floor/boardGeometry'
+import { levelHeader, currentAction } from '../features/paw-floor/levelProgress'
 import type { PawName } from '../types'
 
 const PAW_COLORS: Record<PawName, string> = {
@@ -61,6 +62,7 @@ export function PawFloorMap() {
   }, [pawFloorFrameMap, frames])
 
   const gameConfig = useSessionStore(s => s.gameConfig)
+  const sessionMeta = useSessionStore(s => s.sessionMeta)
 
   const board = useMemo(() => {
     const cfg = gameConfig as { board?: { userCircleDiameterM?: number } } | null
@@ -274,6 +276,40 @@ export function PawFloorMap() {
       ctx.beginPath(); ctx.arc(c.x, c.y, 4, 0, Math.PI * 2); ctx.fill()
     }
 
+    // ── Level and current action, top-left ──────────────────────────
+    const level = levelHeader(gameConfig, sessionMeta)
+    const action = current ? currentAction(gameConfig, gameEvents, current.ts) : null
+    if (level || action) {
+      const lines: Array<{ text: string; color: string }> = []
+      if (level) {
+        lines.push({
+          text: level.name ? `Level ${level.number} — ${level.name}` : `Level ${level.number}`,
+          color: '#eee',
+        })
+      }
+      if (action) {
+        lines.push({
+          text: `${action.index + 1}/${action.total}  ${action.id}  ${action.type}${action.lure ? '  (lure)' : ''}`,
+          color: '#44dd88',
+        })
+      } else if (level) {
+        lines.push({ text: 'no round started', color: '#777' })
+      }
+
+      ctx.font = '11px ui-monospace, monospace'
+      const boxW = Math.max(...lines.map(l => ctx.measureText(l.text).width)) + 16
+      const boxH = lines.length * 16 + 10
+      ctx.fillStyle = 'rgba(14,14,14,0.85)'
+      ctx.fillRect(6, 6, boxW, boxH)
+      ctx.strokeStyle = '#333'
+      ctx.lineWidth = 1
+      ctx.strokeRect(6, 6, boxW, boxH)
+      lines.forEach((l, i) => {
+        ctx.fillStyle = l.color
+        ctx.fillText(l.text, 14, 23 + i * 16)
+      })
+    }
+
     // Scale note.
     ctx.fillStyle = '#777'
     ctx.font = '10px ui-monospace, monospace'
@@ -281,6 +317,7 @@ export function PawFloorMap() {
   }, [
     bounds, analysis, pawFloorFrameMap, frames, frameIdx,
     confidenceThreshold, pawTrailSeconds, arPlaneEvents, board, gameEvents,
+    gameConfig, sessionMeta,
   ])
 
   return <canvas ref={canvasRef} className="paw-floor-map" />

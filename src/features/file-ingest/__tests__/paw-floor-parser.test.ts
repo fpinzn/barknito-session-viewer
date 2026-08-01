@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { detectCSVType, parsePawFloorCSV } from '../parsers'
+import { detectCSVType, parsePawFloorCSV, parseJSON } from '../parsers'
 
 const fixture = readFileSync(
   join(__dirname, '../fixtures/paw-floor-sample.csv'),
@@ -60,5 +60,22 @@ describe('parsePawFloorCSV', () => {
     const paw = parsePawFloorCSV(fixture).get(5175)!.paws.get('left_front_paw')!
     expect('depth' in paw).toBe(false)
     expect('depthM' in paw).toBe(false)
+  })
+})
+
+describe('parseJSON config routing', () => {
+  it('routes level_config.json to gameConfig', () => {
+    // Bundles ship `level_config.json`; matching only `game_config` dropped it
+    // into the unknown branch and left the store's gameConfig null.
+    const r = parseJSON(JSON.stringify({ levelNumber: 2, actionSequence: [] }), 'level_config.json')
+    expect(r.type).toBe('gameConfig')
+  })
+
+  it('still routes game_config.json to gameConfig', () => {
+    expect(parseJSON('{}', 'game_config.json').type).toBe('gameConfig')
+  })
+
+  it('does not claim unrelated json', () => {
+    expect(parseJSON('{"foo":1}', 'something_else.json').type).toBe('unknown')
   })
 })
