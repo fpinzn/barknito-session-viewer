@@ -8,6 +8,7 @@ interface UIState {
   showPawFloor: boolean
   showPawLift: boolean
   pawTrailSeconds: number
+  viewMode: 'scene' | 'split'
   confidenceThreshold: number
   pointDensity: number
   depthZScale: number
@@ -26,6 +27,7 @@ interface UIState {
   setShowPawFloor: (v: boolean) => void
   setShowPawLift: (v: boolean) => void
   setPawTrailSeconds: (v: number) => void
+  setViewMode: (v: 'scene' | 'split') => void
   setConfidenceThreshold: (v: number) => void
   setPointDensity: (v: number) => void
   setDepthZScale: (v: number) => void
@@ -48,6 +50,7 @@ const initialState = {
   // Derived, not measured — must be opted into.
   showPawLift: false,
   pawTrailSeconds: 2,
+  viewMode: 'scene' as const,
   confidenceThreshold: 0.3,
   pointDensity: 4,
   depthZScale: 1.0,
@@ -70,6 +73,7 @@ export const useUIStore = create<UIState>((set) => ({
   setShowPawFloor: (v) => set({ showPawFloor: v }),
   setShowPawLift: (v) => set({ showPawLift: v }),
   setPawTrailSeconds: (v) => set({ pawTrailSeconds: v }),
+  setViewMode: (v) => set({ viewMode: v }),
   setConfidenceThreshold: (v) => set({ confidenceThreshold: v }),
   setPointDensity: (v) => set({ pointDensity: v }),
   setDepthZScale: (v) => set({ depthZScale: v }),

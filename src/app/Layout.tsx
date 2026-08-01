@@ -3,6 +3,8 @@ import { useSessionStore } from '../stores/sessionStore'
 import { useUIStore } from '../stores/uiStore'
 import { ingestFile } from '../features/file-ingest/ingest'
 import { SceneCanvas } from '../three/SceneCanvas'
+import { VideoPane } from '../components/VideoPane'
+import { PawFloorMap } from '../components/PawFloorMap'
 import { ControlsBar } from '../components/ControlsBar'
 import { ParameterPanel } from '../components/ParameterPanel'
 import { HUD } from '../components/HUD'
@@ -19,6 +21,7 @@ export function Layout() {
     s.frames.length > 0 || s.videoUrl !== null || s.audioUrl !== null || s.sessionMeta !== null
   )
   const activePanel = useUIStore(s => s.activePanel)
+  const viewMode = useUIStore(s => s.viewMode)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleAddFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,7 +55,21 @@ export function Layout() {
 
       <div className="main-area">
         <div className="canvas-container" id="canvas-container">
-          <SceneCanvas />
+          {/*
+            SceneCanvas stays mounted in every mode: PlaybackEngine drives the
+            master clock from useFrame inside it, and useVideoSync decodes the
+            frame VideoPane blits. In split mode it is parked off-view rather
+            than unmounted, so playback and decoding keep running.
+          */}
+          <div className={viewMode === 'split' ? 'scene-parked' : 'scene-live'}>
+            <SceneCanvas />
+          </div>
+          {viewMode === 'split' && (
+            <div className="split-view">
+              <VideoPane />
+              <PawFloorMap />
+            </div>
+          )}
           <HUD />
           {hasData && (
             <button className="btn-inspect" title="Inspect files" onClick={() => {

@@ -1180,3 +1180,49 @@ body {
 .hidden-video {
   display: none;
 }
+
+/* ── Split view: video | world-fixed floor map ─────────────────────── */
+
+.scene-live {
+  position: absolute;
+  inset: 0;
+}
+
+/*
+  Parked, not unmounted: PlaybackEngine's useFrame is the master clock and
+  useVideoSync decodes the frame VideoPane draws, so the canvas must keep
+  rendering. Kept on-screen at 1px (rather than display:none) so the browser
+  does not throttle its rAF loop.
+*/
+.scene-parked {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  left: 0;
+  bottom: 0;
+  opacity: 0.01;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.split-view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 2px;
+  background: #000;
+}
+
+.split-view > * {
+  flex: 1 1 50%;
+  min-width: 0;
+  height: 100%;
+  display: block;
+}
+
+canvas.video-pane,
+canvas.paw-floor-map {
+  width: 100%;
+  height: 100%;
+  background: #0e0e0e;
+}
