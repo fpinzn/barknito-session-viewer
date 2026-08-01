@@ -6,6 +6,7 @@ import { usePawFloorAnalysis } from '../features/paw-floor/usePawFloorAnalysis'
 import { collectTrackSamples, isContinuous } from '../features/paw-floor/tracks'
 import { floorBounds, makeFloorProjection } from '../features/paw-floor/floorMapProjection'
 import { COLLAPSE_COLOR, JERK_COLOR, trackSegmentColor } from '../features/paw-floor/visuals'
+import { boardGeometry, activeCellAt, cellHitsUpTo } from '../features/paw-floor/boardGeometry'
 import type { PawName } from '../types'
 
 const PAW_COLORS: Record<PawName, string> = {
@@ -59,11 +60,12 @@ export function PawFloorMap() {
     return floorBounds(pts)
   }, [pawFloorFrameMap, frames])
 
-  const board = useMemo(
-    () => gameEvents.find(e => e.type === 'BoardPlaced') as
-      { boardOrigin?: number[]; boardSizeM?: number } | undefined,
-    [gameEvents],
-  )
+  const gameConfig = useSessionStore(s => s.gameConfig)
+
+  const board = useMemo(() => {
+    const cfg = gameConfig as { board?: { userCircleDiameterM?: number } } | null
+    return boardGeometry(gameEvents, cfg?.board?.userCircleDiameterM ?? 0.9)
+  }, [gameEvents, gameConfig])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -106,26 +108,69 @@ export function PawFloorMap() {
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke()
     }
 
-    // Board footprint, if the session placed one.
-    if (board?.boardOrigin && typeof board.boardSizeM === 'number') {
-      const [bx, , bz] = board.boardOrigin
-      const half = board.boardSizeM / 2
-      const tl = proj.toScreen(bx - half, bz - half)
-      const br = proj.toScreen(bx + half, bz + half)
+    // ── Board, cells, active cell, user circle ──────────────────────
+    const poly = (pts: Array<{ x: number; z: number }>) => {
+      ctx.beginPath()
+      pts.forEach((p, i) => {
+        const s = proj.toScreen(p.x, p.z)
+        if (i === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y)
+      })
+      ctx.closePath()
+    }
+
+    if (board) {
+      const active = current ? activeCellAt(gameEvents, current.ts) : null
+
+      for (const cell of board.cells) {
+        const isActive = active !== null && cell.pos[0] === active[0] && cell.pos[1] === active[1]
+        poly(cell.corners)
+        if (isActive) {
+          ctx.fillStyle = 'rgba(68,221,136,0.13)'
+          ctx.fill()
+        }
+        ctx.strokeStyle = isActive ? '#44dd88' : 'rgba(68,136,255,0.45)'
+        ctx.lineWidth = isActive ? 2 : 1
+        ctx.setLineDash(isActive ? [] : [3, 3])
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
+
+      // Board outline.
+      poly(board.outline)
       ctx.strokeStyle = '#4488ff'
-      ctx.setLineDash([4, 4])
-      ctx.strokeRect(
-        Math.min(tl.x, br.x), Math.min(tl.y, br.y),
-        Math.abs(br.x - tl.x), Math.abs(br.y - tl.y),
-      )
+      ctx.lineWidth = 1.5
+      ctx.setLineDash([5, 4])
+      ctx.stroke()
       ctx.setLineDash([])
+
+      // User circle — where the handler is meant to stand.
+      const c = proj.toScreen(board.center.x, board.center.z)
+      const edge = proj.toScreen(board.center.x + board.userCircleRadiusM, board.center.z)
+      ctx.strokeStyle = 'rgba(136,136,255,0.5)'
+      ctx.lineWidth = 1
+      ctx.setLineDash([2, 3])
+      ctx.beginPath(); ctx.arc(c.x, c.y, Math.abs(edge.x - c.x), 0, Math.PI * 2); ctx.stroke()
+      ctx.setLineDash([])
+
+      const tl = proj.toScreen(board.outline[3].x, board.outline[3].z)
       ctx.fillStyle = '#4488ff'
       ctx.font = '10px ui-monospace, monospace'
-      ctx.fillText(
-        `game board ${board.boardSizeM.toFixed(2)} m`,
-        Math.min(tl.x, br.x) + 4,
-        Math.min(tl.y, br.y) - 4,
-      )
+      ctx.fillText(`board ${board.sizeM.toFixed(2)} m · ${board.cells.length} cell${board.cells.length === 1 ? '' : 's'}`, tl.x, tl.y - 5)
+    }
+
+    // Recorded cell entries so far.
+    if (current) {
+      for (const hit of cellHitsUpTo(gameEvents, current.ts)) {
+        const p = proj.toScreen(hit.x, hit.z)
+        const full = hit.hitType === 'FullHit'
+        ctx.strokeStyle = full ? '#44dd88' : '#ddaa44'
+        ctx.lineWidth = 2
+        ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, Math.PI * 2); ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(p.x - 4, p.y); ctx.lineTo(p.x + 4, p.y)
+        ctx.moveTo(p.x, p.y - 4); ctx.lineTo(p.x, p.y + 4)
+        ctx.stroke()
+      }
     }
 
     // AR plane outlines at the current moment.
@@ -147,10 +192,10 @@ export function PawFloorMap() {
         )
       }
     }
-    for (const [, poly] of activePlanes) {
-      if (poly.length < 3) continue
+    for (const [, planePoly] of activePlanes) {
+      if (planePoly.length < 3) continue
       ctx.beginPath()
-      poly.forEach(([x, z], i) => {
+      planePoly.forEach(([x, z], i) => {
         const s = proj.toScreen(x, z)
         if (i === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y)
       })
@@ -235,7 +280,7 @@ export function PawFloorMap() {
     ctx.fillText(`1 m grid · ${(1 / proj.metresPerPx).toFixed(0)} px/m · world-fixed · +z up, +x right`, 8, h - 8)
   }, [
     bounds, analysis, pawFloorFrameMap, frames, frameIdx,
-    confidenceThreshold, pawTrailSeconds, arPlaneEvents, board,
+    confidenceThreshold, pawTrailSeconds, arPlaneEvents, board, gameEvents,
   ])
 
   return <canvas ref={canvasRef} className="paw-floor-map" />
