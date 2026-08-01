@@ -1,6 +1,6 @@
-import { useMemo, type ReactElement } from 'react'
+import { useMemo, useState, type ReactElement } from 'react'
 import * as THREE from 'three'
-import { Line } from '@react-three/drei'
+import { Line, Html } from '@react-three/drei'
 import { useSessionStore } from '../../stores/sessionStore'
 import { usePlaybackStore } from '../../stores/playbackStore'
 import { useUIStore } from '../../stores/uiStore'
@@ -9,6 +9,7 @@ import { rayGeometry, correctForLift, type Vec3 } from '../../features/paw-floor
 import { fitSingleLift } from '../../features/paw-floor/lift'
 import { mirrorAboutCamera } from '../../features/paw-floor/renderSpace'
 import { collectTrackSamples } from '../../features/paw-floor/tracks'
+import { formatPawTooltip, type PawTooltipInput } from '../../features/paw-floor/tooltip'
 import {
   pairDeviationColorHex,
   trackOpacityForAge,
@@ -34,6 +35,8 @@ const DISC_PIXELS = 15
 const MIN_DISC_RADIUS_M = 0.01
 /** Where a miss stub terminates below the camera, in metres. */
 const MISS_STUB_M = 1.5
+/** Invisible hover target radius — larger than the mark, so it is easy to hit. */
+const HOVER_RADIUS_M = 0.035
 /** Trailing tracks are the thing you actually follow, so they read heaviest. */
 const TRACK_LINE_WIDTH = 4
 
@@ -62,7 +65,12 @@ export function PawFloorProjection() {
   const frameIdx = usePlaybackStore(s => s.currentFrameIdx)
   const analysis = usePawFloorAnalysis()
 
-  return useMemo(() => {
+  // Hover lives outside the memo so moving the pointer never rebuilds geometry.
+  const [hover, setHover] = useState<
+    { at: [number, number, number]; info: PawTooltipInput } | null
+  >(null)
+
+  const scene = useMemo(() => {
     if (!showPawFloor || !analysis || !pawFloorFrameMap || frames.length === 0) return null
 
     const current = frames[frameIdx]
@@ -191,6 +199,36 @@ export function PawFloorProjection() {
           />,
         )
       }
+
+      // Invisible hover targets, one per sample — including suspect ones, so a
+      // flagged sample can be inspected rather than only seen.
+      for (let i = 0; i < samples.length; i++) {
+        const s = samples[i]
+        const at = R({ x: s.world.x, y: s.world.y + 0.002, z: s.world.z })
+        elements.push(
+          <mesh
+            key={`hit-${name}-${i}`}
+            position={at}
+            onPointerOver={e => {
+              e.stopPropagation()
+              setHover({
+                at,
+                info: {
+                  paw: name,
+                  world: s.world,
+                  frameId: s.frameId,
+                  ts: s.ts,
+                  suspectReason: s.suspectReason,
+                },
+              })
+            }}
+            onPointerOut={() => setHover(null)}
+          >
+            <sphereGeometry args={[HOVER_RADIUS_M, 8, 6]} />
+            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          </mesh>,
+        )
+      }
     }
 
     // One chord per baseline pair, coloured by that pair's disagreement with
@@ -259,4 +297,34 @@ export function PawFloorProjection() {
 
     return elements.length > 0 ? <group>{elements}</group> : null
   }, [showPawFloor, showPawLift, confidenceThreshold, analysis, pawFloorFrameMap, frames, frameIdx])
+
+  if (!scene) return null
+
+  return (
+    <>
+      {scene}
+      {hover && (
+        <Html position={hover.at} style={{ pointerEvents: 'none' }} zIndexRange={[100, 0]}>
+          <div
+            style={{
+              transform: 'translate(12px, -50%)',
+              background: 'rgba(17,17,17,0.92)',
+              border: '1px solid #444',
+              borderRadius: 4,
+              padding: '6px 8px',
+              font: '11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace',
+              color: '#eee',
+              whiteSpace: 'pre',
+            }}
+          >
+            {formatPawTooltip(hover.info).lines.map((l, i) => (
+              <div key={l} style={{ color: i === 0 ? '#fff' : l.startsWith('⚠') ? '#dd4444' : '#bbb' }}>
+                {l}
+              </div>
+            ))}
+          </div>
+        </Html>
+      )}
+    </>
+  )
 }

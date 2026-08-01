@@ -6,6 +6,8 @@ import type { PawPositions, StanceBaseline } from './stance'
 
 export interface TrackSample {
   ts: number
+  /** `Time.frameCount` as stamped by the recorder, for cross-referencing. */
+  frameId: number
   world: Vec3
   /**
    * Something contradicts this sample, so it is drawn as a break in the track
@@ -40,7 +42,7 @@ export function collectTrackSamples(
 ): Map<PawName, TrackSample[]> {
   const out = new Map<PawName, TrackSample[]>()
 
-  for (const [, frame] of pawFrames) {
+  for (const [frameId, frame] of pawFrames) {
     if (frame.ts > currentTs || frame.ts < currentTs - windowMs) continue
 
     // Collapse is judged on the whole frame, before the confidence gate — a
@@ -61,6 +63,7 @@ export function collectTrackSamples(
       const isCollapsed = collapsed?.has(name) ?? false
       out.get(name)!.push({
         ts: frame.ts,
+        frameId,
         world: paw.world,
         suspect: isCollapsed,
         suspectReason: isCollapsed ? 'collapse' : null,

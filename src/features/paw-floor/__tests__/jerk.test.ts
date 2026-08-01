@@ -3,7 +3,7 @@ import { detectJerkSpikes } from '../jerk'
 import type { TrackSample } from '../tracks'
 
 function s(ts: number, x: number, z: number): TrackSample {
-  return { ts, world: { x, y: 0, z }, suspect: false }
+  return { ts, frameId: ts, world: { x, y: 0, z }, suspect: false, suspectReason: null }
 }
 
 describe('detectJerkSpikes', () => {
