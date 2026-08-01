@@ -8,6 +8,7 @@ import { floorBounds, makeFloorProjection } from '../features/paw-floor/floorMap
 import { COLLAPSE_COLOR, JERK_COLOR, trackSegmentColor } from '../features/paw-floor/visuals'
 import { boardGeometry, activeCellAt, cellHitsUpTo } from '../features/paw-floor/boardGeometry'
 import { levelHeader, currentAction } from '../features/paw-floor/levelProgress'
+import { scoreFlash, cellKey } from '../features/paw-floor/scoreFlash'
 import type { PawName } from '../types'
 
 const PAW_COLORS: Record<PawName, string> = {
@@ -127,21 +128,39 @@ export function PawFloorMap() {
       // CellRadius, so drawing squares misrepresented the play area.
       const rEdge = proj.toScreen(board.center.x + board.cellRadiusM, board.center.z)
       const cellR = Math.abs(rEdge.x - proj.toScreen(board.center.x, board.center.z).x)
+      const flashes = current ? scoreFlash(gameEvents, current.ts) : new Map<string, number>()
 
       for (const cell of board.cells) {
         const isActive = active !== null && cell.pos[0] === active[0] && cell.pos[1] === active[1]
         const cc = proj.toScreen(cell.center.x, cell.center.z)
+
+        // Stroke only — a fill made the active cell read as a filled disc
+        // rather than a ring like the others.
         ctx.beginPath()
         ctx.arc(cc.x, cc.y, cellR, 0, Math.PI * 2)
-        if (isActive) {
-          ctx.fillStyle = 'rgba(68,221,136,0.16)'
-          ctx.fill()
-        }
         ctx.strokeStyle = isActive ? '#44dd88' : 'rgba(68,136,255,0.5)'
-        ctx.lineWidth = isActive ? 2 : 1
+        ctx.lineWidth = isActive ? 2.5 : 1
         ctx.setLineDash(isActive ? [] : [3, 3])
         ctx.stroke()
         ctx.setLineDash([])
+
+        // Scored: a ring expanding outward and fading, keyed to session time so
+        // it animates during playback and reproduces exactly when scrubbed.
+        const flash = flashes.get(cellKey(cell.pos))
+        if (flash !== undefined) {
+          ctx.beginPath()
+          ctx.arc(cc.x, cc.y, cellR * (1 + (1 - flash) * 0.6), 0, Math.PI * 2)
+          ctx.strokeStyle = '#44dd88'
+          ctx.globalAlpha = flash
+          ctx.lineWidth = 1 + flash * 3
+          ctx.stroke()
+          ctx.globalAlpha = flash * 0.18
+          ctx.fillStyle = '#44dd88'
+          ctx.beginPath()
+          ctx.arc(cc.x, cc.y, cellR, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.globalAlpha = 1
+        }
       }
 
       // Board outline.
