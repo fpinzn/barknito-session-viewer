@@ -104,19 +104,26 @@ export function boardGeometry(
 /**
  * The cell the game had active at a given moment.
  *
- * Newer recorder builds emit `ActionStarted`, older ones `RoundStarted`; both
- * carry `activeCellPos`, so both are accepted.
+ * `CellActivated` is authoritative: it is recorded inside `ActivateCurrentCell`,
+ * after the cell is chosen. `ActionStarted`/`RoundStarted` are read only as a
+ * fallback for bundles predating it — those fire before the choice is made and
+ * name a stale slot, which is why 20260801-134725-c2f6 reports [0,0] for three
+ * consecutive actions the dog demonstrably played in different cells.
  */
 export function activeCellAt(events: GameEvent[], ts: number): [number, number] | null {
-  let best: [number, number] | null = null
+  let authoritative: [number, number] | null = null
+  let fallback: [number, number] | null = null
+
   for (const e of events) {
-    if (e.type !== 'ActionStarted' && e.type !== 'RoundStarted') continue
     if (e.timestampMs > ts) continue
     const pos = e.activeCellPos as number[] | undefined
     if (!pos || pos.length < 2) continue
-    best = [pos[0], pos[1]]
+
+    if (e.type === 'CellActivated') authoritative = [pos[0], pos[1]]
+    else if (e.type === 'ActionStarted' || e.type === 'RoundStarted') fallback = [pos[0], pos[1]]
   }
-  return best
+
+  return authoritative ?? fallback
 }
 
 /** Recorded cell entries up to the playhead. */

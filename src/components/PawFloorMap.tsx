@@ -9,6 +9,7 @@ import { COLLAPSE_COLOR, JERK_COLOR, trackSegmentColor } from '../features/paw-f
 import { boardGeometry, activeCellAt, cellHitsUpTo } from '../features/paw-floor/boardGeometry'
 import { levelHeader, currentAction } from '../features/paw-floor/levelProgress'
 import { scoreFlash, cellKey } from '../features/paw-floor/scoreFlash'
+import { liveBadVibesAt } from '../features/paw-floor/badVibes'
 import type { PawName } from '../types'
 
 const PAW_COLORS: Record<PawName, string> = {
@@ -161,6 +162,32 @@ export function PawFloorMap() {
           ctx.fill()
           ctx.globalAlpha = 1
         }
+      }
+
+      // Bad vibes sitting on cells right now.
+      const vibes = current ? liveBadVibesAt(gameEvents, current.ts) : new Map()
+      for (const [, vibe] of vibes) {
+        const cell = board.cells.find(
+          c => c.pos[0] === vibe.cellPos[0] && c.pos[1] === vibe.cellPos[1],
+        )
+        if (!cell) continue
+        const vc = proj.toScreen(cell.center.x, cell.center.z)
+        ctx.strokeStyle = '#cc55dd'
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.arc(vc.x, vc.y, cellR * 0.55, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.fillStyle = 'rgba(204,85,221,0.18)'
+        ctx.fill()
+
+        const label = vibe.hitsRequired
+          ? `${vibe.totalDamage}/${vibe.hitsRequired}`
+          : (vibe.variant ?? 'vibe')
+        ctx.fillStyle = '#cc55dd'
+        ctx.font = 'bold 9px ui-monospace, monospace'
+        ctx.textAlign = 'center'
+        ctx.fillText(label, vc.x, vc.y - cellR * 0.7)
+        ctx.textAlign = 'left'
       }
 
       // Board outline.

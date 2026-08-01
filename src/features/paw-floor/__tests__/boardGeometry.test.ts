@@ -129,3 +129,37 @@ describe('cellHitsUpTo', () => {
     expect(cellHitsUpTo([{ type: 'DogEnteredCell', timestampMs: 0 }], 10)).toHaveLength(0)
   })
 })
+
+describe('activeCellAt — CellActivated precedence', () => {
+  it('prefers CellActivated over the stale ActionStarted value', () => {
+    const evs: GameEvent[] = [
+      { type: 'ActionStarted', timestampMs: 100, actionId: 'B1', activeCellPos: [0, 0] },
+      { type: 'CellActivated', timestampMs: 120, activeCellPos: [1, 1] },
+    ]
+    expect(activeCellAt(evs, 200)).toEqual([1, 1])
+  })
+
+  it('falls back to ActionStarted for bundles predating CellActivated', () => {
+    const evs: GameEvent[] = [
+      { type: 'ActionStarted', timestampMs: 100, activeCellPos: [0, 1] },
+    ]
+    expect(activeCellAt(evs, 200)).toEqual([0, 1])
+  })
+
+  it('does not use a CellActivated from the future', () => {
+    const evs: GameEvent[] = [
+      { type: 'ActionStarted', timestampMs: 100, activeCellPos: [0, 0] },
+      { type: 'CellActivated', timestampMs: 500, activeCellPos: [1, 1] },
+    ]
+    expect(activeCellAt(evs, 200)).toEqual([0, 0])
+  })
+
+  it('tracks successive activations', () => {
+    const evs: GameEvent[] = [
+      { type: 'CellActivated', timestampMs: 100, activeCellPos: [0, 0] },
+      { type: 'CellActivated', timestampMs: 200, activeCellPos: [1, 0] },
+    ]
+    expect(activeCellAt(evs, 150)).toEqual([0, 0])
+    expect(activeCellAt(evs, 250)).toEqual([1, 0])
+  })
+})
