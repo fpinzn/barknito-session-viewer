@@ -1,8 +1,12 @@
+import { useMemo } from 'react'
 import { useUIStore } from '../stores/uiStore'
 import { useSessionStore } from '../stores/sessionStore'
+import { confidenceFloors, PAW_SOURCE_ID } from '../features/paw-floor/confidenceFloor'
 
 export function ParameterPanel() {
   const hasData = useSessionStore(s => s.frames.length > 0)
+  const poseEvents = useSessionStore(s => s.poseEvents)
+  const pawFloorFrameMap = useSessionStore(s => s.pawFloorFrameMap)
 
   const followCam = useUIStore(s => s.followCam)
   const show2D = useUIStore(s => s.show2DSkeleton)
@@ -16,6 +20,31 @@ export function ParameterPanel() {
   const vidAlpha = useUIStore(s => s.videoAlpha)
   const ptAlpha = useUIStore(s => s.pointAlpha)
   const skelOffset = useUIStore(s => s.skelMsOffset)
+
+  const floors = useMemo(
+    () => confidenceFloors(poseEvents, pawFloorFrameMap),
+    [poseEvents, pawFloorFrameMap],
+  )
+
+  // Floor the slider at the lowest confidence any loaded source actually
+  // contains — below it the slider does nothing. Rounded down so the lowest
+  // sample itself stays selectable.
+  const sliderMin = floors.overallMin === null
+    ? 0
+    : Math.floor(floors.overallMin * 100) / 100
+
+  const confTooltip = floors.sources.length === 0
+    ? 'Hide landmarks and paw marks below this confidence.'
+    : [
+        'Hide landmarks and paw marks below this confidence.',
+        '',
+        'Each source has its own hard floor — nothing below it was ever recorded,',
+        'so lowering the slider past it reveals nothing more:',
+        ...floors.sources.map(s => `  • ${s.id}: ${s.min.toFixed(2)}`
+          + (s.id === PAW_SOURCE_ID ? '  (recorder minConfidence)' : '')),
+        '',
+        `Slider stops at ${sliderMin.toFixed(2)}, the lowest across all loaded sources.`,
+      ].join('\n')
 
   if (!hasData) return null
 
@@ -52,11 +81,12 @@ export function ParameterPanel() {
         <label htmlFor="chk-pawlift" title="Derived from stance geometry, not measured. Only drawn when the session's stance baseline is stable.">Paw lift (derived)</label>
       </div>
 
-      <div className="slider-group">
+      <div className="slider-group" title={confTooltip}>
         <label>Conf</label>
-        <input type="range" min="0" max="1" step="0.01" value={confidence}
+        <input type="range" min={sliderMin} max="1" step="0.01"
+          value={Math.max(confidence, sliderMin)}
           onChange={e => useUIStore.getState().setConfidenceThreshold(parseFloat(e.target.value))} />
-        <span className="sval">{confidence.toFixed(2)}</span>
+        <span className="sval">{Math.max(confidence, sliderMin).toFixed(2)}</span>
       </div>
       <div className="slider-group">
         <label>Density</label>
